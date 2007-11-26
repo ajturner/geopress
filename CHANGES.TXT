@@ -1,0 +1,9 @@
+GeoPress Changelog
+====================
+v2.1
+[NEW] RSS content is now a static image instead of Javascript
+[FIXED] Bad Javascript caused page to fail loading from last changeset 
+[FIXED] Mapstraction calls are now added to the body onload event. This should fix displaying Microsoft maps in IE
+[CHANGED] Select map when writing a post should only setCenter, and not change the zoom levels
+[CHANGED] Map objects are added to a Javascript array
+[CHANGED] Versioning is now counted from 2.0+
