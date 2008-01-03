@@ -155,31 +155,31 @@ class GeoPress {
   function install() {
   	global $table_prefix, $wpdb;
 
+  // Do a dbDelta to make any necessary updates to the database depending on previous GeoPress version
   $table_name = $table_prefix . "geopress";
-  if ($wpdb->get_var("show tables like '$table_name'") != $table_name) {
-    $sql = "CREATE TABLE $table_name (
-      id int(11) NOT NULL AUTO_INCREMENT,
-      name tinytext NOT NULL,
-      loc	tinytext,
-      warn tinytext,
-      mapurl tinytext,
-      coord text NOT NULL,
-      geom varchar(16) NOT NULL,
-      relationshiptag tinytext,
-      featuretypetag tinytext,
-      elev float,
-      floor float,
-      radius float,
-      visible tinyint(4) DEFAULT 1,
-      map_format tinytext DEFAULT '',
-      map_zoom tinyint(4) DEFAULT 0,
-      map_type tinytext DEFAULT '',
-      UNIQUE KEY id (id)
-      );";
+  $sql = "CREATE TABLE $table_name (
+	id int(11) NOT NULL AUTO_INCREMENT,
+	name tinytext NOT NULL,
+	loc	tinytext,
+	warn tinytext,
+	mapurl tinytext,
+	coord text NOT NULL,
+	geom varchar(16) NOT NULL,
+	relationshiptag tinytext,
+	featuretypetag tinytext,
+	elev float,
+	floor float,
+	radius float,
+	visible tinyint(4) DEFAULT 1,
+	map_format tinytext DEFAULT '',
+	map_zoom tinyint(4) DEFAULT 0,
+	map_type tinytext DEFAULT '',
+	UNIQUE KEY id (id)
+	);";
 
-		require_once(ABSPATH . 'wp-admin/upgrade-functions.php');
-		dbDelta($sql);
-	}
+	require_once(ABSPATH . 'wp-admin/upgrade-functions.php');
+	dbDelta($sql);
+
 	// One time change necessary to convert from id to geopress_id
 	$update_to_geopress_id = 0;
 	$sql = "DESCRIBE $table_name;";
