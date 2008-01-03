@@ -2,8 +2,8 @@
 /*
 Plugin Name: GeoPress 
 Plugin URI:  http://georss.org/geopress
-Description: GeoPress adds geographic tagging of your posts and blog. You can enter an address, points on a map, upload a GPX log, or enter latitude & longitude. You can then embed Maps, location tags, and ground tracks in your site and your blog entries. Makes your feeds GeoRSS compatible.
-Version: 2.4
+Description: GeoPress adds geographic tagging of your posts and blog. You can enter an address, points on a map, upload a GPX log, or enter latitude & longitude. You can then embed Maps, location tags, and ground tracks in your site and your blog entries. Makes your feeds GeoRSS compatible and adds KML output
+Version: 2.4 beta
 Author: Andrew Turner & Mikel Maron
 Author URI: http://georss.org/geopress
 
@@ -469,6 +469,8 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
 	  <p>Alternatively, you can manually insert a map by putting <code>INSERT_MAP</code> anywhere in your post text. The map will use the default map size as sent in your GeoPress options. You can override this size by passing in INSERT_MAP(height,width), where height and width are the size of the map, in pixels.</p>
 	  <p>You can also insert the geographic coordinates, or address of the post by using <code>INSERT_COORDS</code>, and <code>INSERT_ADDRESS</code>, respectively. These will be output using <a href="http://microformats.org" title="Microformats homepage">Microformat</a> styling. </p>
 	  <p>INSERT_LOCATION will put in the stored name of the location into a post.</p>
+	  <p>A map of all your geotagged posts can be inserted by using INSERT_GEOPRESS_MAP(height,width).</p>
+	  <p>You can set the location of a post within the body of the post itself by using <code>GEOPRESS_LOCATION(Location String)</code>, where <em>Location String</em> can be any text that normally works in the GeoPress location box. For example address, city, region, country, etc. You can also post coordinates by doing <code>GEOPRESS_LOCATION([latitude,longitude]). An alternative is to use machine-tags in the Post, like <code>tags: geo:long=24.9419260025024 geo:lat=60.1587851399795</code>, for example. These two mechanisms make it easy to add GeoPress locations when using an offline blog client, or when posting by email or SMS.</p>
 	  <h4>Limitations</h4>
 	  <p>Currently, GeoPress only supports a single geographic coordinate. In the future it will support lines, polygons, and multiple points.</p>
 	  <h3>Template Functions</h3>

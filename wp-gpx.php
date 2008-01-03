@@ -38,69 +38,25 @@ $more = 1;
 
 ?>
 <?php echo '<?xml version="1.0" encoding="'.get_settings('blog_charset').'"?'.'>'; ?>
-<!-- generator="wordpress/<?php bloginfo_rss('version') ?>/KMLpress" -->
-<kml xmlns="http://earth.google.com/kml/2.0">
-<Document>
-<Style id="defaultIcon">
-    <LabelStyle>
-        <scale>0</scale>
-    </LabelStyle>
-    <?php if ($kml_icon) { ?>
-    <IconStyle>
-        <Icon>
-            <href><?php echo $kml_icon; ?></href>
-        </Icon>
-    </IconStyle>
-    <?php } ?>
-    </Style>
-<Style id="hoverIcon">
-    <IconStyle>
-        <scale>2.1</scale>
-        <?php if ($kml_icon) { ?>
-        <Icon>
-            <href><?php echo $kml_icon; ?></href>
-        </Icon>
-        <?php } ?>
-    </IconStyle>
-</Style>
-<StyleMap id="defaultStyle">
-    <Pair>
-        <key>normal</key>
-        <styleUrl>#defaultIcon</styleUrl>
-    </Pair>
-    <Pair>
-        <key>highlight</key>
-        <styleUrl>#hoverIcon</styleUrl>
-    </Pair>
-</StyleMap>
-    <name><?php bloginfo_rss('name'); ?></name>
-    <Snippet><![CDATA[<?php bloginfo_rss('url') ?><br/><?php echo mysql2date('D, d M Y H:i:s +0000', get_lastpostmodified('GMT'), false); ?>]]></Snippet>
-    <description><?php bloginfo_rss("description") ?></description>
+<!-- generator="wordpress/<?php bloginfo_rss('version') ?>" -->
+<gpx
+ version="1.0"
+ creator="ExpertGPS 1.1 - http://www.topografix.com"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns="http://www.topografix.com/GPX/1/0"
+ xsi:schemaLocation="http://www.topografix.com/GPX/1/0 http://www.topografix.com/GPX/1/0/gpx.xsd">
+<time><?php echo current_time('mysql'); ?></time>
     <?php $items_count = 0; $wp_query->post_count = 1000; if ($posts) {
     foreach ($posts as $post) {
         $coord = the_coord();
           $coord = split(" ", $coord);
         if ($coord[0] || $coord[1]) {
             start_wp(); ?>
-    <Placemark id="<?php the_ID(); ?>">
+    <wpt lat="<?php echo $coord[0] ?>" lon="<?php echo $coord[1] ?>">
         <name><?php the_title_rss() ?></name>
-<?php if (get_settings('rss_use_excerpt')) : ?>
-        <Snippet><![CDATA[<?php the_excerpt_rss() ?>]]></Snippet>
-<?php else : ?>
-        <Snippet><![CDATA[<?php the_excerpt_rss() ?>]]></Snippet>
-    <?php if ( strlen( $post->post_content ) > 0 ) : ?>
-        <description><![CDATA[<?php the_content('', 0, '') ?>]]></description>
-    <?php endif; ?>
-<?php endif; ?>
-        <styleUrl>#defaultStyle</styleUrl>
-        <metadata><?php echo convert_chars(the_category(','));  ?></metadata>
-        <visibility>1</visibility>
-        <Point>
-            <extrude>1</extrude>
-            <altitudeMode>relativeToGround</altitudeMode>
-            <coordinates><?php echo $coord[1].','.$coord[0]; ?>,25</coordinates>
-        </Point>";
-    </Placemark>
+        <desc><![CDATA[<?php the_content_rss() ?>]]></desc>
+        <type><?php foreach((get_the_category()) as $cat) { echo $cat->cat_name . ' '; } ?></type>
+		<time><?php the_time('c') ?></time>
+    </wpt>
     <?php $items_count++; /* if (($items_count == get_settings('posts_per_rss')) && empty($m)) { break; } */ } } } ?>
-</Document>
-</kml>
+</gpx>
