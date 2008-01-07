@@ -36,8 +36,8 @@ Author URI: http://georss.org/geopress
 */
 
 define('google_geocoder', 'http://maps.google.com/maps/geo?q=', false);
-define('google_regexp', "<coordinates>(.*),(.*),0</coordinates>");
-define('yahoo_regexp', "<Latitude>(.*)<\/Latitude>.*<Longitude>(.*)<\/Longitude>");
+define('google_regexp', "\<coordinates\>(.*),(.*),0\<\/coordinates\>");
+define('yahoo_regexp', "\<Latitude\>(.*)\<\/Latitude\>.+\<Longitude\>(.*)\<\/Longitude\>");
 define('yahoo_geocoder', 'http://api.local.yahoo.com/MapsService/V1/geocode?appid=geocodewordpress&location=', false);
 define('yahoo_annotatedmaps', 'http://api.maps.yahoo.com/Maps/V1/AnnotatedMaps?appid=geocodewordpress&xmlsrc=', false);
 define('yahoo_embedpngmapurl', 'http://api.local.yahoo.com/MapsService/V1/mapImage?appid=geocodewordpress&', false);
@@ -59,11 +59,11 @@ function geocode($location, $geocoder) {
     $client->read_timeout = GEOPRESS_FETCH_TIMEOUT;
     $client->use_gzip = GEOPRESS_USE_GZIP;
     if($geocoder == 'google') {
-      $url = google_geocode . urlencode($location);
+      $url = google_geocoder . urlencode($location);
       $regexp = google_regexp;
     }
     elseif($geocoder == 'yahoo') {
-      $url = yahoo_geocode . urlencode($location);
+      $url = yahoo_geocoder . urlencode($location);
       $regexp = yahoo_regexp;
     }
 
@@ -79,8 +79,8 @@ function geocode($location, $geocoder) {
       $lon = $latlong[2];
     } 
     elseif ($geocoder == 'yahoo' && preg_match("/$regexp/", $xml, $latlong)) { 
-      $lat = $latlong[2];
-      $lon = $latlong[1];
+      $lat = $latlong[1];
+      $lon = $latlong[2];
     }
   }
   else {
@@ -246,7 +246,7 @@ class GeoPress {
       $sql .= " LIMIT ".$number;
     }
     $result = $wpdb->get_results( $sql );
-    echo $sql;
+    // echo $sql;
     return $result;
   }
   // dfraga - Getting loop locations 
@@ -321,7 +321,7 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
   if($name == "") { $visible = 0; }
 
   $table_name = $table_prefix . "geopress";
-  $sql = "SELECT * FROM ".$table_name." WHERE name = '".$name."' AND coord = '".$coord."'";
+  $sql = "SELECT * FROM ".$table_name." WHERE (name = '".$name."' AND coord = '".$coord."') OR loc = '".$loc."'";
   $row = $wpdb->get_row( $sql );
   //TODO SQL INJECTION POSSIBLE?
   if ($row) {
@@ -505,7 +505,7 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
       for($i = 0; $i < count($_POST['locname']);$i++) {
         // If the user set the locations via the web interface, don't change it here.
         if( !preg_match('/\[(.+),[ ]?(.+)\]/', $_POST['geometry'], $matches) ) { 
-          list($lat, $lon) = yahoo_geocode($_POST['locaddr'][$i]);
+          list($lat, $lon) = geocode($_POST['locaddr'][$i], "yahoo");
         }
         else {
           $lat = $matches[1];
@@ -876,7 +876,7 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
           $lon = $matches[2];          
         }
         else {
-          // list($lat, $lon) = yahoo_geocode($addr);
+          list($lat, $lon) = geocode($addr, "yahoo");
         }
       } else {
         $lat = $matches[1];
