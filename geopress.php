@@ -286,7 +286,6 @@ class GeoPress {
             $locations[$loc->name] = array();
         }
         array_push($locations[$loc->name], $loc);
-                echo "$loc->name -- $loc->post_title : $loc->coord <br/>";    
 
     }
     return $locations;	
