@@ -1,5 +1,9 @@
 GeoPress Changelog
 ====================
+v2.4.1
+[NEW] Maps can be created within Post loops (for archives, search results, etc), use geopress_map(height, width, -1, false, true) - the last true sets $loop_locations 
+[NEW] Post Markers are grouped together by location and put in the bubble text
+[FIXED] Editing Locations stores appropriate edits and doesn't generate invalid locations anymore
 v2.4
 [NEW] Added GEOPRESS_LOCATION tag in body to set the location of a post - useful when using desktop client or email posting
 [NEW] Added GPX output

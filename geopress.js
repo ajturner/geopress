@@ -85,7 +85,8 @@ function showLocation(addr, geometry) {
   
   // The geometry element may already have a good location
   if(geom) {
-    if(matches = geom.match(/(.+)[ ]+(.+)/)) {
+    if(matches = geom.match(/(.+),[ ]+(.+)/)) {
+  console.log(matches[1]);
       setMapPoint(new LatLonPoint(matches[1], matches[2]));
       return false;
     }
@@ -151,7 +152,8 @@ function geopress_loadsaved(oSel) {
 
   var addr = oSel.options[oSel.selectedIndex].value;
   var name = oSel.options[oSel.selectedIndex].text;
-
+  // Remove previous geocoding
+  document.getElementById("geometry").value = "";
   addrobj = document.getElementById("addr");
   locnameobj = document.getElementById("locname");
   addrobj.value = addr;

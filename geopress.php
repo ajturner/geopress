@@ -1,11 +1,12 @@
 <?php
 /*
+GeoPress
 Plugin Name: GeoPress 
-Plugin URI:  http://georss.org/geopress
-Description: GeoPress adds geographic tagging of your posts and blog. You can enter an address, points on a map, upload a GPX log, or enter latitude & longitude. You can then embed Maps, location tags, and ground tracks in your site and your blog entries. Makes your feeds GeoRSS compatible and adds KML output
-Version: 2.4 beta
+Plugin URI:  http://wordpress.org/extend/plugins/geopress/
+Description: GeoPress adds geographic tagging of your posts and blog. You can enter an address, points on a map, upload a GPX log, or enter latitude & longitude. You can then embed Maps, location tags, and ground tracks in your site and your blog entries. Makes your feeds GeoRSS compatible and adds KML output. (http://georss.org/geopress	)
+Version: 2.4.1
 Author: Andrew Turner & Mikel Maron
-Author URI: http://georss.org/geopress
+Author URI: http://mapufacture.com
 
 */
 
@@ -35,12 +36,12 @@ Author URI: http://georss.org/geopress
 	Allan () - by post zoom/maptype settings
 */
 
-define('google_geocoder', 'http://maps.google.com/maps/geo?q=', false);
-define('google_regexp', "\<coordinates\>(.*),(.*),0\<\/coordinates\>");
-define('yahoo_regexp', "\<Latitude\>(.*)\<\/Latitude\>.+\<Longitude\>(.*)\<\/Longitude\>");
-define('yahoo_geocoder', 'http://api.local.yahoo.com/MapsService/V1/geocode?appid=geocodewordpress&location=', false);
-define('yahoo_annotatedmaps', 'http://api.maps.yahoo.com/Maps/V1/AnnotatedMaps?appid=geocodewordpress&xmlsrc=', false);
-define('yahoo_embedpngmapurl', 'http://api.local.yahoo.com/MapsService/V1/mapImage?appid=geocodewordpress&', false);
+define('google_geocoder', 'http://maps.google.com/maps/geo?q=', true);
+define('google_regexp', "<coordinates>(.*),(.*),0</coordinates>", true);
+define('yahoo_regexp', "<Latitude>(.*)<\/Latitude>.*<Longitude>(.*)<\/Longitude>", true);
+define('yahoo_geocoder', 'http://api.local.yahoo.com/MapsService/V1/geocode?appid=geocodewordpress&location=', true);
+define('yahoo_annotatedmaps', 'http://api.maps.yahoo.com/Maps/V1/AnnotatedMaps?appid=geocodewordpress&xmlsrc=', true);
+define('yahoo_embedpngmapurl', 'http://api.local.yahoo.com/MapsService/V1/mapImage?appid=geocodewordpress&', true);
 define('GEOPRESS_USE_ZIP', true);
 define('GEOPRESS_FETCH_TIMEOUT', 2);
 define('GEOPRESS_USER_AGENT',  'GeoPress2.0', false);
@@ -53,13 +54,17 @@ if ( !function_exists('Snoopy') ) {
 }
 
 function geocode($location, $geocoder) {
+  if($geocoder == null) {
+    $geocoder = "yahoo";
+  }
+  
   if( !preg_match('/\[(.+),[ ]?(.+)\]/', $location, $matches) ) { 
     $client = new Snoopy();
     $client->agent = GEOPRESS_USER_AGENT;
     $client->read_timeout = GEOPRESS_FETCH_TIMEOUT;
     $client->use_gzip = GEOPRESS_USE_GZIP;
     if($geocoder == 'google') {
-      $url = google_geocoder . urlencode($location);
+      $url = google_geocode . urlencode($location);
       $regexp = google_regexp;
     }
     elseif($geocoder == 'yahoo') {
@@ -91,7 +96,6 @@ function geocode($location, $geocoder) {
 }
 
 function yahoo_geocode($location) {
-  return false;
   if( !preg_match('/\[(.+),[ ]?(.+)\]/', $location, $matches) ) { 
 
     $client = new Snoopy();
@@ -99,12 +103,14 @@ function yahoo_geocode($location) {
     $client->read_timeout = GEOPRESS_FETCH_TIMEOUT;
     $client->use_gzip = GEOPRESS_USE_GZIP;
     $url = yahoo_geocoder . urlencode($location);
+
     @$client->fetch($url);
     $xml = $client->results;
 
     $lat = "";
     $lon = "";
     $latlong = "";
+
     if (preg_match("/<Latitude>(.*)<\/Latitude>.*<Longitude>(.*)<\/Longitude>/", $xml, $latlong)) { 
       $lat = $latlong[1];
       $lon = $latlong[2];
@@ -218,6 +224,7 @@ class GeoPress {
     }
   }
 
+  // Returns an array of locations, each key containing the array of posts at the at location
   function get_location_posts ($number = -1) {
     global $table_prefix, $wpdb;
     $geopress_table = $table_prefix . "geopress";
@@ -232,7 +239,15 @@ class GeoPress {
     }
     $result = $wpdb->get_results( $sql );
 
-    return $result;
+    //  Build a hash of Location => Posts @ location
+    $locations = array();
+    foreach ($result as $loc) {
+        if($locations[$loc->name] == null) {
+            $locations[$loc->name] = array();
+        }
+        array_push($locations[$loc->name], $loc);
+    }
+    return $locations;
   }
   function get_locations ($number = -1) {
     global $table_prefix, $wpdb;
@@ -246,25 +261,35 @@ class GeoPress {
       $sql .= " LIMIT ".$number;
     }
     $result = $wpdb->get_results( $sql );
-    // echo $sql;
+    // echo $sql; // debug
     return $result;
   }
   // dfraga - Getting loop locations 
   function get_loop_locations ($locations = -1) {
       $result = "";
-	$i = 0;
+      $i = 0;
       while (have_posts()) { the_post();
-	    //echo "get_loop_locations: -> ".get_the_ID()." -> ".get_the_title()."<br />";
-	    $geo = GeoPress::get_geo(get_the_ID());
-	    if ($geo != "") {
-	        $result[] = $geo;
-		  $i++;
-		  if ($i == $locations) {
+          // echo "get_loop_locations: -> ".get_the_ID()." -> ".get_the_title()."<br />";
+          $geo = GeoPress::get_geo(get_the_ID());
+          if ($geo != "") {
+              $result[] = $geo;
+              $i++;
+              if ($i == $locations) {
                   break;
               }
-	    }
-	}
-	return $result;
+          }
+      }
+    //  Build a hash of Location => Posts @ location
+    $locations = array();
+    foreach ($result as $loc) {
+        if($locations[$loc->name] == null) {
+            $locations[$loc->name] = array();
+        }
+        array_push($locations[$loc->name], $loc);
+                echo "$loc->name -- $loc->post_title : $loc->coord <br/>";    
+
+    }
+    return $locations;	
   }
 
   // function get_bounds($locations) {
@@ -292,13 +317,25 @@ class GeoPress {
 
 function get_geo ($id) {
   global $table_prefix, $wpdb;
+    // 
+    // $sql = "SELECT * FROM $geopress_table";
+    // $sql .= " INNER JOIN $wpdb->postmeta ON $wpdb->postmeta.meta_key = '_geopress_id'";
+    // $sql .= " AND $wpdb->postmeta.meta_value = $geopress_table.geopress_id";
+    // $sql .= " WHERE AND coord != '' GROUP BY 'name'";
+    // if($number >= 0) {
+    //   $sql .= " LIMIT ".$number;
+    // }
 
-  $table_name = $table_prefix . "geopress";
+  $geopress_table = $table_prefix . "geopress";
   $geo_id = get_post_meta($id,'_geopress_id',true);
   if ($geo_id) {
-    $sql = "SELECT * FROM ".$table_name." WHERE geopress_id = ".$geo_id;
-    $row = $wpdb->get_row( $sql );
-    return $row;
+    $sql = "SELECT * FROM $geopress_table, $wpdb->postmeta";
+    $sql .= " INNER JOIN $wpdb->posts ON $wpdb->posts.id = $wpdb->postmeta.post_id";
+    $sql .= " WHERE $wpdb->postmeta.meta_key = '_geopress_id'";
+    $sql .= " AND $wpdb->postmeta.meta_value = $geopress_table.geopress_id";
+    $sql .= " AND $wpdb->postmeta.post_id = $id AND $geopress_table.geopress_id = $geo_id";
+    $row = $wpdb->get_results( $sql );
+    return $row[0];
   }
 }
 
@@ -315,13 +352,18 @@ function get_location ($loc_id) {
 }
 
 // Store the location and map parameters to the database
-function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_format = '', $map_zoom = 0, $map_type = '') {
+function save_geo ($id, $name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_format = '', $map_zoom = 0, $map_type = '') {
   global $table_prefix, $wpdb;
 
   if($name == "") { $visible = 0; }
 
   $table_name = $table_prefix . "geopress";
-  $sql = "SELECT * FROM ".$table_name." WHERE (name = '".$name."' AND coord = '".$coord."') OR loc = '".$loc."'";
+
+  if($id && $id != -1) {
+  	$sql = "SELECT * FROM $table_name WHERE geopress_id = $id";
+  } else {
+  	$sql = "SELECT * FROM $table_name WHERE (name = '$name' AND coord = '$coord') OR loc = '$loc'";
+  }
   $row = $wpdb->get_row( $sql );
   //TODO SQL INJECTION POSSIBLE?
   if ($row) {
@@ -357,16 +399,19 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
       echo ">" . $row->name . "</option>\n";
     }
   }
-  function map_saved_locations () {
+  function map_saved_locations ($locations) {
     global $table_prefix, $wpdb;
 
     $output = geopress_map_select();
     $output .= "<script type='text/javascript'>\n";
-    $table_name = $table_prefix . "geopress";
-    $sql = "SELECT * FROM ".$table_name;
-    $result = $wpdb->get_results( $sql );
+    
+    if($locations == null) {
+        $table_name = $table_prefix . "geopress";
+        $sql = "SELECT * FROM ".$table_name;
+        $locations = $wpdb->get_results( $sql );
+    }
     $output .= "geopress_addEvent(window,'load', function() { \n";
-    foreach ($result as $row) {
+    foreach ($locations as $row) {
       if($row->coord != " ") {
         $coords = split(" ",$row->coord);
         $output .= "\tvar myPoint = new LatLonPoint( $coords[0], $coords[1]);\n";
@@ -425,7 +470,7 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
                </thead>
           <tbody>
           <tr>
-          	<td><label for="geopress_select"> <select id="geopress_select" onchange="geopress_loadsaved(this);showLocation("addr","geometry");"><option value="">--choose one--</option>';
+          	<td><label for="geopress_select"> <select id="geopress_select" onchange="geopress_loadsaved(this);showLocation(\'addr\',\'geometry\');"><option value="">--choose one--</option>';
 			GeoPress::select_saved_geo();
 		    echo '</td>';
     echo '
@@ -505,7 +550,7 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
       for($i = 0; $i < count($_POST['locname']);$i++) {
         // If the user set the locations via the web interface, don't change it here.
         if( !preg_match('/\[(.+),[ ]?(.+)\]/', $_POST['geometry'], $matches) ) { 
-          list($lat, $lon) = geocode($_POST['locaddr'][$i], "yahoo");
+          list($lat, $lon) = geocode($_POST['locaddr'][$i]);
         }
         else {
           $lat = $matches[1];
@@ -539,18 +584,18 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
 	$i = -1;
 	foreach ($result as $loc) {
 		$i++;
-		if($loc->visible) { $checked = "checked";}
+		if($loc->visible) { $checked = "checked='checked'";}
 		else {$checked = "";}
 ?>
-	    <tr><td width=5%><input type="hidden" name="locid[<?php echo $i?>]" value="<? echo $loc->geopress_id?>"/><input type="checkbox" value="1" name='locvisible[<?php echo $i?>]' <?php echo $checked?> /></td>
-	    <td width=15%> <input size="10" type="text" value="<?php echo $loc->name?>" name='locname[<?php $i?>]' /></td>
-	    <td width=50%> <input size="50" type="text" value="<?php echo $loc->loc?>" name='locaddr[<?php $i?>]' onKeyPress="return checkEnter(event);"/></td>
+	    <tr><td width=5%><input type="hidden" name="locid[<?php echo $i?>]" value="<? echo $loc->geopress_id?>"/><input type="checkbox" value="1" name='locvisible[<?php echo $i?>]' <?php echo $checked?>/></td>
+	    <td width=15%> <input size="10" type="text" value="<?php echo $loc->name?>" name='locname[<?php echo $i?>]' /></td>
+	    <td width=50%> <input size="50" type="text" value="<?php echo $loc->loc?>" name='locaddr[<?php echo $i?>]' onKeyPress="return checkEnter(event);"/></td>
 <?php
 	    echo "</tr>\n";
 	}	
     echo '</tbody>
           </table>';	
-	GeoPress::map_saved_locations();
+	GeoPress::map_saved_locations($result);
 	echo '<div class="submit"><input type="submit" name="Options" value="'. __('Save Locations', 'GeoPress') . '&raquo;" /></div>';
     
   }
@@ -876,7 +921,7 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
           $lon = $matches[2];          
         }
         else {
-          list($lat, $lon) = geocode($addr, "yahoo");
+          list($lat, $lon) = geocode($addr);
         }
       } else {
         $lat = $matches[1];
@@ -886,7 +931,8 @@ function save_geo ($name,$loc,$coord,$geom,$warn,$mapurl,$visible = 1,$map_forma
       $coords = "$lat $lon";
       $coord_type = "point";
         
-      $geo_id = GeoPress::save_geo($locname, $addr, $coords, $coord_type, $warn, $mapurl, 1, $map_format, $map_zoom, $map_type);
+      // Create a new loc - therefore -1
+      $geo_id = GeoPress::save_geo(-1, $locname, $addr, $coords, $coord_type, $warn, $mapurl, 1, $map_format, $map_zoom, $map_type);
       add_post_meta($id, '_geopress_id', $geo_id);
     }
   }
@@ -1115,7 +1161,6 @@ add_action('save_post', array('GeoPress', 'update_post'));
 add_action('edit_post', array('GeoPress', 'update_post'));
 add_action('publish_post', array('GeoPress', 'update_post'));
 add_filter('the_content', array('GeoPress', 'embed_map_inpost'));
-add_filter('the_content', array('GeoPress', 'embed_data_inpost'));
 add_action('admin_menu', array('GeoPress', 'admin_menu'));
 add_action('option_menu', array('GeoPress', 'geopress_options_page'));
 add_action('wp_head', array('GeoPress', 'wp_head'));
@@ -1205,6 +1250,7 @@ function geopress_map_loop($height = "", $width = "", $locations = -1, $zoom_lev
 // $height, $width are the h/w in pixels of the map
 // $locations is the last N locations to put on the map, be default puts *all* locations
 // $unique_id is a true/false if a unique_id is required
+// $loop_locations set this to true if you're running this in a Post loop and want a map of the currently visible posts
 function geopress_map($height = "", $width = "", $locations = -1, $unique_id, $loop_locations = false, $zoom_level = -1) {
   $map_format = get_settings('_geopress_map_format', true);
   if ($height == "" || $width == "" )
@@ -1237,11 +1283,16 @@ function geopress_map($height = "", $width = "", $locations = -1, $unique_id, $l
   $output .= 'geo_map'.$map_id.'.setMapType('.GeoPress::mapstraction_map_type().');'."\n";
   $output .= "var markers = new Array(); var i = 0;"."\n";
 
-  foreach ($locs as $loc) {
+  foreach ($locs as $posts) {
+    $loc = $posts[0];
     $coords = split(" ",$loc->coord);
-    $url = get_bloginfo('wpurl') . "/?p=". $loc->post_id;
     $output .= "i = markers.push(new Marker(new LatLonPoint($coords[0], $coords[1])));\n";
-    $output .= 'markers[i-1].setInfoBubble("<a href=\''.$url.'\' title=\' '. htmlentities($loc->post_title).'\'>'.htmlentities($loc->post_title).'</a> @ '. htmlentities($loc->name) .'");'."\n";
+    $details = " @ <strong>". htmlentities($loc->name)."</strong><br/>";
+    $url = get_bloginfo('wpurl');
+    foreach($posts as $post) {
+        $details .= "<a href='".$url.'/?p='.$post->post_id."' title='". htmlentities($post->post_title)."'>".htmlentities($post->post_title)."</a><br/>";
+    }
+    $output .= "markers[i-1].setInfoBubble(\"$details\");\n";
     $output .= "geo_map$map_id.addMarker(markers[i-1]);\n";
     //	$output .= 'geo_bounds.extend(markers[i-1].point);'."\n";
   }
@@ -1262,34 +1313,34 @@ function geopress_map($height = "", $width = "", $locations = -1, $unique_id, $l
 
 $geopress_map_index = 1;
 function geopress_post_map($height = "", $width = "", $controls = true) {
-  global $post, $geopress_map_index;
-  $geo = GeoPress::get_geo($post->ID);
-  if($geo) {
-  if(!is_feed()) {
+    global $post, $geopress_map_index;
+    $geo = GeoPress::get_geo($post->ID);
+    if($geo) {
+        if(!is_feed()) {
 
-	if ($height == "" || $width == "" ) {
-	 	$height = get_settings('_geopress_mapheight', true);
-	 	$width = get_settings('_geopress_mapwidth', true);
-	}
+            if ($height == "" || $width == "" ) {
+                $height = get_settings('_geopress_mapheight', true);
+                $width = get_settings('_geopress_mapwidth', true);
+            }
 
-	$map_id = $post->ID . $geopress_map_index;
+            $map_id = $post->ID . $geopress_map_index;
 
-	$coords = split(" ",$geo->coord);
+            $coords = split(" ",$geo->coord);
 
-  $map_controls = $controls ? GeoPress::mapstraction_map_controls() : "false"; 
-	$output = '<div id="geo_map'.$map_id.'" class="mapstraction" style="height: '.$height.'px; width: '.$width.'px;"></div>';
-	$output .= '<!-- GeoPress Map --><script type="text/javascript">';
-	// $output .= " //<![CDATA[ ";
-	$output .= 'geopress_addEvent(window,"load", function() { geopress_makemap('.$map_id.',"'. $geo->name .'",'.$coords[0].','.$coords[1].',"'.GeoPress::mapstraction_map_format($geo->map_format).'",'.GeoPress::mapstraction_map_type($geo->map_type).', '. $map_controls .','.GeoPress::mapstraction_map_zoom($geo->map_zoom).') }); ';
-	$output .= "</script><!-- end GeoPress Map -->";
-  }
-  else
-  {
-	$output = '<img src="'.$geo->mapurl.'" title="GeoPress map of '.$geo->name.'"/>';
-  }
-  $geopress_map_index++;
-  }
-  return $output;
+            $map_controls = $controls ? GeoPress::mapstraction_map_controls() : "false"; 
+            $output = '<div id="geo_map'.$map_id.'" class="mapstraction" style="height: '.$height.'px; width: '.$width.'px;"></div>';
+            $output .= '<!-- GeoPress Map --><script type="text/javascript">';
+            // $output .= " //<![CDATA[ ";
+            $output .= 'geopress_addEvent(window,"load", function() { geopress_makemap('.$map_id.',"'. $geo->name .'",'.$coords[0].','.$coords[1].',"'.GeoPress::mapstraction_map_format($geo->map_format).'",'.GeoPress::mapstraction_map_type($geo->map_type).', '. $map_controls .','.GeoPress::mapstraction_map_zoom($geo->map_zoom).') }); ';
+            $output .= "</script><!-- end GeoPress Map -->";
+        }
+        else
+        {
+            $output = '<img src="'.$geo->mapurl.'" title="GeoPress map of '.$geo->name.'"/>';
+        }
+        $geopress_map_index++;
+    }
+    return $output;
 
 }
 
