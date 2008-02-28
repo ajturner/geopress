@@ -29,7 +29,7 @@ $kml_icon = "";
 if (empty($wp)) {
     require_once('wp-config.php');
     $posts_per_page=-1;
-		wp();
+		wp('feed=1');
 		//wp('feed=rss2');
 }
 
@@ -38,44 +38,45 @@ $more = 1;
 
 ?>
 <?php echo '<?xml version="1.0" encoding="'.get_settings('blog_charset').'"?'.'>'; ?>
-<!-- generator="wordpress/<?php bloginfo_rss('version') ?>/KMLpress" -->
-<kml xmlns="http://earth.google.com/kml/2.0">
+<!-- generator="wordpress/<?php bloginfo_rss('version') ?>/GeoPress" -->
+<kml xmlns="http://earth.google.com/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
 <Document>
-<Style id="defaultIcon">
-    <LabelStyle>
-        <scale>0</scale>
-    </LabelStyle>
-    <?php if ($kml_icon) { ?>
-    <IconStyle>
-        <Icon>
-            <href><?php echo $kml_icon; ?></href>
-        </Icon>
-    </IconStyle>
-    <?php } ?>
-    </Style>
-<Style id="hoverIcon">
-    <IconStyle>
-        <scale>2.1</scale>
+    <Style id="defaultIcon">
+        <LabelStyle>
+            <scale>0</scale>
+        </LabelStyle>
         <?php if ($kml_icon) { ?>
-        <Icon>
-            <href><?php echo $kml_icon; ?></href>
-        </Icon>
+        <IconStyle>
+            <Icon>
+                <href><?php echo $kml_icon; ?></href>
+            </Icon>
+        </IconStyle>
         <?php } ?>
-    </IconStyle>
-</Style>
-<StyleMap id="defaultStyle">
-    <Pair>
-        <key>normal</key>
-        <styleUrl>#defaultIcon</styleUrl>
-    </Pair>
-    <Pair>
-        <key>highlight</key>
-        <styleUrl>#hoverIcon</styleUrl>
-    </Pair>
-</StyleMap>
+        </Style>
+    <Style id="hoverIcon">
+        <IconStyle>
+            <scale>2.1</scale>
+            <?php if ($kml_icon) { ?>
+            <Icon>
+                <href><?php echo $kml_icon; ?></href>
+            </Icon>
+            <?php } ?>
+        </IconStyle>
+    </Style>
+    <StyleMap id="defaultStyle">
+        <Pair>
+            <key>normal</key>
+            <styleUrl>#defaultIcon</styleUrl>
+        </Pair>
+        <Pair>
+            <key>highlight</key>
+            <styleUrl>#hoverIcon</styleUrl>
+        </Pair>
+    </StyleMap>
     <name><?php bloginfo_rss('name'); ?></name>
     <Snippet><![CDATA[<?php bloginfo_rss('url') ?><br/><?php echo mysql2date('D, d M Y H:i:s +0000', get_lastpostmodified('GMT'), false); ?>]]></Snippet>
     <description><?php bloginfo_rss("description") ?></description>
+    <atom:link href="<?php bloginfo('atom_url'); ?>"/>
     <?php $items_count = 0; $wp_query->post_count = 1000; if ($posts) {
     foreach ($posts as $post) {
         $coord = the_coord();
@@ -92,6 +93,13 @@ $more = 1;
         <description><![CDATA[<?php the_content('', 0, '') ?>]]></description>
     <?php endif; ?>
 <?php endif; ?>
+		<atom:author>
+			<atom:name><?php the_author() ?></atom:name>
+		</atom:author>
+		<?php $author_url = get_the_author_url(); if ( !empty($author_url) ) : ?>
+			<atom:link href="<?php the_author_url()?>"/>
+		<?php endif; ?>
+	
         <styleUrl>#defaultStyle</styleUrl>
         <metadata><?php echo convert_chars(the_category(','));  ?></metadata>
         <visibility>1</visibility>
@@ -99,7 +107,7 @@ $more = 1;
             <extrude>1</extrude>
             <altitudeMode>relativeToGround</altitudeMode>
             <coordinates><?php echo $coord[1].','.$coord[0]; ?>,25</coordinates>
-        </Point>";
+        </Point>
     </Placemark>
     <?php $items_count++; /* if (($items_count == get_settings('posts_per_rss')) && empty($m)) { break; } */ } } } ?>
 </Document>
