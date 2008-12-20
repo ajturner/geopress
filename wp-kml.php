@@ -27,7 +27,7 @@ $kml_icon = "";
 ###################################
 
 if (empty($wp)) {
-    require_once('wp-config.php');
+    require_once('../../../wp-config.php');
     $posts_per_page=-1;
 		wp('feed=1');
 		//wp('feed=rss2');
@@ -77,12 +77,10 @@ $more = 1;
     <Snippet><![CDATA[<?php bloginfo_rss('url') ?><br/><?php echo mysql2date('D, d M Y H:i:s +0000', get_lastpostmodified('GMT'), false); ?>]]></Snippet>
     <description><?php bloginfo_rss("description") ?></description>
     <atom:link href="<?php bloginfo('atom_url'); ?>"/>
-    <?php $items_count = 0; $wp_query->post_count = 1000; if ($posts) {
-    foreach ($posts as $post) {
+  	<?php while (have_posts()) : the_post();
         $coord = the_coord();
           $coord = split(" ", $coord);
-        if ($coord[0] || $coord[1]) {
-            start_wp(); ?>
+        if ($coord[0] || $coord[1]) { ?>
     <Placemark id="<?php the_ID(); ?>">
         <name><?php the_title_rss() ?></name>
 <?php if (get_settings('rss_use_excerpt')) : ?>
@@ -109,6 +107,6 @@ $more = 1;
             <coordinates><?php echo $coord[1].','.$coord[0]; ?>,25</coordinates>
         </Point>
     </Placemark>
-    <?php $items_count++; /* if (($items_count == get_settings('posts_per_rss')) && empty($m)) { break; } */ } } } ?>
+  <?php } endwhile ; ?>
 </Document>
 </kml>

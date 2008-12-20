@@ -7,7 +7,7 @@ function geopress_storezoom(elem) {
   $('geopress_map_zoom').value = geo_map.getZoom();	
 }
 // Creates a map 
-function geopress_makemap(map_id, name, lat, lon, map_format, map_type, map_controls, map_zoom) {
+function geopress_makemap(map_id, name, lat, lon, map_format, map_type, map_controls, map_zoom, marker_icon) {
   num_maps = geo_maps.push(new Mapstraction("geo_map" + map_id, map_format)) - 1;
   var myPoint = new LatLonPoint(lat, lon);
   if(map_controls)
@@ -16,7 +16,7 @@ function geopress_makemap(map_id, name, lat, lon, map_format, map_type, map_cont
   geo_maps[num_maps].setMapType(map_type);
   var marker = new Marker(myPoint);
   marker.setInfoBubble(name);
-  geo_maps[num_maps].addMarker(marker);
+  geo_maps[num_maps].addMarkerWithData(marker, {icon: marker_icon, iconSize:[24,24]});
 }
 function geopress_setmap() {
   geo_map.removeAllMarkers();
@@ -86,7 +86,6 @@ function showLocation(addr, geometry) {
   // The geometry element may already have a good location
   if(geom) {
     if(matches = geom.match(/(.+),[ ]+(.+)/)) {
-  console.log(matches[1]);
       setMapPoint(new LatLonPoint(matches[1], matches[2]));
       return false;
     }
@@ -107,7 +106,7 @@ function geocode(element, geometry) {
     element = 'addr';
 
   //	document.forms[0].locname.value = "";
-  returnObjById('locname').value = "";
+  // returnObjById('locname').value = "";
   returnObjById('geometry').value = "";
 
   showLocation(element, geometry);    
@@ -237,3 +236,27 @@ function geopress_change_zoom() {
 
 }
 
+function geopress_maketravelmap(map_id, points, map_format, map_type, map_controls) {
+	var myMap = new Mapstraction("geo_map" + map_id, map_format);
+	num_maps = geo_maps.push() - 1;
+	//  var myPoint = new LatLonPoint(lat, lon);
+	if(map_controls)
+	myMap.addControls(map_controls);
+	myMap.setCenterAndZoom(new LatLonPoint(0, 0), 5);
+	myMap.setMapType(map_type);
+	var polyPoints = [];
+	for(p in points) {
+		var point = new LatLonPoint(points[p].lat, points[p].lng);
+		polyPoints.push(point);
+		var marker = new Marker(point);
+		marker.setInfoBubble(unescape(points[p].title));
+		marker.setLabel(unescape(points[p].name));
+		myMap.addMarker(marker);
+	}
+	var polyline=new Polyline(polyPoints);
+	polyline.setWidth(3);
+	polyline.setOpacity(0.8);
+	polyline.setColor("#fa7");
+	myMap.addPolyline(polyline);
+	myMap.autoCenterAndZoom();
+}

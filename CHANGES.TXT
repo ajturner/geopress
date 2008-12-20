@@ -1,16 +1,39 @@
 GeoPress Changelog
 ====================
+v2.5
+[NEW] Tested with WordPress 2.7
+[NEW] Added OpenLayers support for OpenStreetMap and other layers
+[NEW] Custom marker support
+
+v2.4.3
+[FIXED] Adding a comment to a post no longer removes the location.
+[CHANGED] geopress_locations_list now works like the wp_list_cats and other template functions and just echos out an <li>
+
+v2.4.2
+[NEW] Updated to match styling of WordPress 2.5
+[CHANGED] Geocoding in the 'Write' does not delete the location name
+[CHANGED] Slight styling changes on the Write page
 v2.4.1
 [NEW] Maps can be created within Post loops (for archives, search results, etc), use geopress_map(height, width, -1, false, true) - the last true sets $loop_locations 
 [NEW] Post Markers are grouped together by location and put in the bubble text
 [FIXED] Editing Locations stores appropriate edits and doesn't generate invalid locations anymore
+
 v2.4
 [NEW] Added GEOPRESS_LOCATION tag in body to set the location of a post - useful when using desktop client or email posting
 [NEW] Added GPX output
 [FIXED] The database is properly upgraded now from previous versions
 [FIXED] INSERT_GEOPRESS_MAP works by showing a marker per post
 v2.3
+[FIXED] Updated the Mapstraction Javascript to work with Safari web browsers and also handle geocoding in GeoPress/MT
+
+v2.3
+[NEW] Configure the 'default' map style for size, controls, zoom level
+[NEW] Option to automatically add maps to the end of located posts
+[NEW] Location pages - use geopress_locations_list() to get a list of links to location pages - or use "?location=Location Name"
+
 v2.2
+[NEW] Can set locations and embed maps for Pages in addition to Posts
+
 v2.1
 [NEW] RSS content is now a static image instead of Javascript
 [FIXED] Bad Javascript caused page to fail loading from last changeset 

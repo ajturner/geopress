@@ -18,7 +18,7 @@
 
 */
 if (empty($wp)) {
-    require_once('wp-config.php');
+    require_once('../../../wp-config.php');
     //wp('feed=rss2');
 }
 
