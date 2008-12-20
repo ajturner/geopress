@@ -2,7 +2,7 @@
 Contributors: ajturner
 Tags: geo, mapping, maps, georss, kml, microformats, mapstraction, google, yahoo, microsoft, openstreetmap, map24, multimap, mapquest, freeearth, spinnyglobe, neogeography
 Requires at least: 2.0.0
-Tested up to: 2.5.1
+Tested up to: 2.8
 Stable tag: /trunk/
 
 Add maps to your posts or pages, embed Microformat Geo or Adr, and output GeoRSS and KML. 

@@ -3,7 +3,7 @@
 GeoPress
 Plugin Name: GeoPress 
 Plugin URI:  http://georss.org/geopress/
-Description: GeoPress adds geographic tagging of your posts and blog. You can enter an address, points on a map, upload a GPX log, or enter latitude & longitude. You can then embed Maps, location tags, and ground tracks in your site and your blog entries. Makes your feeds GeoRSS compatible and adds KML output. (http://georss.org/geopress	)
+Description: GeoPress adds geographic tagging of your posts and blog. You can enter an address, points on a map, upload a GPX log, or enter latitude & longitude. You can then embed Maps, location tags, and ground tracks in your site and your blog entries. Makes your feeds GeoRSS compatible and adds KML output. (http://georss.org/geopress)
 Version: 2.5-beta
 Author: Andrew Turner & Mikel Maron
 Author URI: http://mapufacture.com
