@@ -50,8 +50,12 @@ class GeoPress_Admin {
 	// ── Post editor metabox ───────────────────────────────────────────────────
 
 	/**
-	 * Registers the Location metabox via add_meta_box() so it appears in both
-	 * the Classic Editor and the Gutenberg block editor.
+	 * Registers the Location metabox.
+	 *
+	 * Uses context 'side' so Gutenberg renders it in the Document settings
+	 * sidebar alongside Categories and Tags. In the Classic Editor it appears
+	 * in the right column.
+	 *
 	 * Hooked to: add_meta_boxes
 	 */
 	public static function register_meta_boxes() {
@@ -60,7 +64,7 @@ class GeoPress_Admin {
 			__( 'Location', 'geopress' ),
 			array( __CLASS__, 'location_edit_form' ),
 			array( 'post', 'page' ),
-			'normal',
+			'side',
 			'default'
 		);
 	}
@@ -71,72 +75,84 @@ class GeoPress_Admin {
 		self::geopress_new_location_form( $geo );
 	}
 
+	/**
+	 * Renders the location form.
+	 *
+	 * Gutenberg renders side metaboxes in a narrow iframe (~280 px), so this
+	 * form uses simple stacked inputs instead of the full map widget. The map
+	 * widget (geopress_map_select) is only added for the Classic Editor, where
+	 * the context is wide enough to display it.
+	 */
 	public static function geopress_new_location_form( $geo ) {
 		$loc      = $geo ? esc_attr( $geo->loc )   : '';
 		$geometry = $geo ? esc_attr( $geo->coord )  : '';
 		$locname  = $geo ? esc_attr( $geo->name )   : '';
+
+		// Detect whether we are inside the block editor (Gutenberg) by checking
+		// the global screen object. Side metaboxes in Gutenberg are rendered in
+		// an iframe; Classic Editor pages have a non-block-editor screen.
+		$is_block_editor = function_exists( 'get_current_screen' )
+			&& ( get_current_screen() && method_exists( get_current_screen(), 'is_block_editor' ) )
+			&& get_current_screen()->is_block_editor();
 		?>
 		<div id="locationdiv">
-			<div class="inside">
-				<?php wp_nonce_field( 'geopress_save_location', 'geopress_nonce' ); ?>
-				<table width="100%" cellpadding="3" cellspacing="3">
-					<thead>
-						<tr>
-							<th scope="col" align="left"><?php esc_html_e( 'Saved Name', 'geopress' ); ?></th>
-							<th scope="col" colspan="3" align="left"><?php esc_html_e( 'Location Name, Address, or [Latitude, Longitude]', 'geopress' ); ?></th>
-							<th scope="col" colspan="3" align="left"></th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td width="15%">
-								<input size="10" type="text" value="<?php echo $locname; ?>" name="locname" id="locname" />
-							</td>
-							<td width="50%">
-								<input size="50" type="text" value="<?php echo $loc; ?>" name="addr" id="addr" onkeypress="return checkEnter(event);" />
-							</td>
-							<td width="20%">
-								<a href="#" onclick="geocode();return false;" title="<?php esc_attr_e( 'Geocode this address', 'geopress' ); ?>">
-									<?php esc_html_e( 'Map Location', 'geopress' ); ?>
-								</a>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-				<input type="hidden" value="<?php echo $geometry; ?>" name="geometry" id="geometry" />
-				<table width="30%" cellpadding="3" cellspacing="3">
-					<tbody>
-						<tr>
-							<td align="left"><?php esc_html_e( 'Saved Locations', 'geopress' ); ?></td>
-							<td rowspan="3"><?php echo geopress_map_select(); ?></td>
-						</tr>
-						<tr>
-							<td>
-								<label for="geopress_select">
-									<select id="geopress_select" onchange="geopress_loadsaved(this);showLocation('addr','geometry');">
-										<option value=""><?php esc_html_e( '--choose one--', 'geopress' ); ?></option>
-										<?php GeoPress::select_saved_geo(); ?>
-									</select>
-								</label>
-							</td>
-						</tr>
-						<tr>
-							<td width="20%" height="200px">
-								<a href="#" onclick="geopress_resetMap();return false;" title="<?php esc_attr_e( 'Zoom out and center map', 'geopress' ); ?>">
-									<?php esc_html_e( 'Reset Map', 'geopress' ); ?>
-								</a>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</div><!-- .inside -->
-			<?php if ( $geo ) : ?>
-			<script type="text/javascript">
-			geopress_addEvent(window, 'load', function() { showLocation(); });
-			</script>
+			<?php wp_nonce_field( 'geopress_save_location', 'geopress_nonce' ); ?>
+
+			<p>
+				<label for="locname"><strong><?php esc_html_e( 'Label', 'geopress' ); ?></strong></label><br />
+				<input type="text" id="locname" name="locname" value="<?php echo $locname; ?>"
+					style="width:100%" placeholder="<?php esc_attr_e( 'e.g. Home, Conference Centre', 'geopress' ); ?>" />
+			</p>
+
+			<p>
+				<label for="addr"><strong><?php esc_html_e( 'Address or Coordinates', 'geopress' ); ?></strong></label><br />
+				<input type="text" id="addr" name="addr" value="<?php echo $loc; ?>"
+					style="width:100%" placeholder="<?php esc_attr_e( 'Address or [lat, lon]', 'geopress' ); ?>"
+					<?php if ( ! $is_block_editor ) : ?>onkeypress="return checkEnter(event);"<?php endif; ?> />
+				<span style="font-size:11px;color:#666;">
+					<?php esc_html_e( 'Tip: enter coordinates as [lat, lon] to skip geocoding, e.g. [51.5, -0.1]', 'geopress' ); ?>
+				</span>
+			</p>
+
+			<?php if ( $geo && $geometry ) : ?>
+			<p style="font-size:11px;color:#666;">
+				&#x1F4CD; <?php echo esc_html( $geometry ); ?>
+			</p>
 			<?php endif; ?>
+
+			<input type="hidden" id="geometry" name="geometry" value="<?php echo $geometry; ?>" />
+
+			<?php
+			// Saved-location picker + map widget — only rendered in Classic Editor
+			// where there is enough width and the map JS is available on the page.
+			if ( ! $is_block_editor ) :
+				$saved_locations = GeoPress::select_saved_geo_array();
+				if ( $saved_locations ) :
+				?>
+				<p>
+					<label for="geopress_select"><?php esc_html_e( 'Saved Locations', 'geopress' ); ?></label><br />
+					<select id="geopress_select" style="width:100%"
+						onchange="geopress_loadsaved(this);showLocation('addr','geometry');">
+						<option value=""><?php esc_html_e( '--choose one--', 'geopress' ); ?></option>
+						<?php foreach ( $saved_locations as $row ) : ?>
+							<option value="<?php echo esc_attr( $row->loc ); ?>"><?php echo esc_html( $row->name ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</p>
+				<?php
+				endif;
+			endif;
+			?>
+
 		</div>
 		<?php
+		if ( ! $is_block_editor && $geo ) :
+		?>
+		<script type="text/javascript">
+		geopress_addEvent(window, 'load', function() { showLocation(); });
+		</script>
+		<?php
+		endif;
 	}
 
 	// ── Locations page ────────────────────────────────────────────────────────

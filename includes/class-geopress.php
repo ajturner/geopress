@@ -328,18 +328,24 @@ class GeoPress {
 	 * Outputs <option> elements for all visible saved locations.
 	 */
 	public static function select_saved_geo() {
-		global $wpdb;
-
-		$table  = $wpdb->prefix . 'geopress';
-		$result = $wpdb->get_results( "SELECT geopress_id, loc, name FROM {$table} WHERE visible = 1" );
-
-		foreach ( $result as $row ) {
+		foreach ( self::select_saved_geo_array() as $row ) {
 			printf(
 				'<option value="%s">%s</option>' . "\n",
 				esc_attr( $row->loc ),
 				esc_html( $row->name )
 			);
 		}
+	}
+
+	/**
+	 * Returns an array of visible saved location objects (geopress_id, loc, name).
+	 *
+	 * @return array
+	 */
+	public static function select_saved_geo_array() {
+		global $wpdb;
+		$table = $wpdb->prefix . 'geopress';
+		return $wpdb->get_results( "SELECT geopress_id, loc, name FROM {$table} WHERE visible = 1" );
 	}
 
 	// ── Post save ─────────────────────────────────────────────────────────────
