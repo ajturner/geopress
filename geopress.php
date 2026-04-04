@@ -53,9 +53,9 @@ require_once GEOPRESS_DIR . 'includes/template-functions.php';
 
 register_activation_hook( __FILE__, array( 'GeoPress', 'install' ) );
 
-// ── Post editor metabox ──────────────────────────────────────────────────────
+// ── Post editor metabox (Classic + Gutenberg) ────────────────────────────────
 
-add_action( 'edit_form_after_editor', array( 'GeoPress_Admin', 'location_edit_form' ) );
+add_action( 'add_meta_boxes', array( 'GeoPress_Admin', 'register_meta_boxes' ) );
 
 // ── Location query hooks ─────────────────────────────────────────────────────
 
@@ -76,6 +76,38 @@ add_action( 'admin_enqueue_scripts', array( 'GeoPress', 'enqueue_admin_scripts' 
 
 add_filter( 'the_content', array( 'GeoPress', 'embed_map_inpost' ) );
 add_filter( 'the_content', array( 'GeoPress', 'embed_data_inpost' ) );
+
+// ── Shortcodes (for use in Gutenberg's Shortcode block) ───────────────────────
+// [geopress_map height="" width="" locations="-1" zoom_level="-1" url=""]
+add_shortcode( 'geopress_map', function ( $atts ) {
+	$a = shortcode_atts( array(
+		'height'     => '',
+		'width'      => '',
+		'locations'  => -1,
+		'zoom_level' => -1,
+		'url'        => '',
+	), $atts, 'geopress_map' );
+	return geopress_map( $a['height'], $a['width'], (int) $a['locations'], true, false, (int) $a['zoom_level'], $a['url'] );
+} );
+
+// [geopress_post_map height="" width="" overlay=""]
+add_shortcode( 'geopress_post_map', function ( $atts ) {
+	$a = shortcode_atts( array(
+		'height'  => '',
+		'width'   => '',
+		'overlay' => '',
+	), $atts, 'geopress_post_map' );
+	return geopress_post_map( $a['height'], $a['width'], true, $a['overlay'] );
+} );
+
+// [geopress_page_map height="" width=""]
+add_shortcode( 'geopress_page_map', function ( $atts ) {
+	$a = shortcode_atts( array(
+		'height' => '',
+		'width'  => '',
+	), $atts, 'geopress_page_map' );
+	return geopress_page_map( $a['height'], $a['width'] );
+} );
 
 // ── Admin menu ───────────────────────────────────────────────────────────────
 

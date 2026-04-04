@@ -49,9 +49,25 @@ class GeoPress_Admin {
 
 	// ── Post editor metabox ───────────────────────────────────────────────────
 
-	public static function location_edit_form() {
-		global $post_ID;
-		$geo = GeoPress::get_geo( (int) $post_ID );
+	/**
+	 * Registers the Location metabox via add_meta_box() so it appears in both
+	 * the Classic Editor and the Gutenberg block editor.
+	 * Hooked to: add_meta_boxes
+	 */
+	public static function register_meta_boxes() {
+		add_meta_box(
+			'geopress-location',
+			__( 'Location', 'geopress' ),
+			array( __CLASS__, 'location_edit_form' ),
+			array( 'post', 'page' ),
+			'normal',
+			'default'
+		);
+	}
+
+	public static function location_edit_form( $post = null ) {
+		$post_id = $post ? $post->ID : 0;
+		$geo     = GeoPress::get_geo( (int) $post_id );
 		self::geopress_new_location_form( $geo );
 	}
 
@@ -60,8 +76,7 @@ class GeoPress_Admin {
 		$geometry = $geo ? esc_attr( $geo->coord )  : '';
 		$locname  = $geo ? esc_attr( $geo->name )   : '';
 		?>
-		<div id="locationdiv" class="postbox">
-			<h3><a href="https://www.georss.org/"><?php esc_html_e( 'Location', 'geopress' ); ?></a></h3>
+		<div id="locationdiv">
 			<div class="inside">
 				<?php wp_nonce_field( 'geopress_save_location', 'geopress_nonce' ); ?>
 				<table width="100%" cellpadding="3" cellspacing="3">
