@@ -261,7 +261,7 @@ class GeoPress_Admin {
 		$map_format         = get_option( '_geopress_map_format', 'openlayers' );
 		$default_mapwidth   = (int) get_option( '_geopress_mapwidth', 400 );
 		$default_mapheight  = (int) get_option( '_geopress_mapheight', 200 );
-		$default_marker     = get_option( '_geopress_marker', GEOPRESS_URL . 'flag.png' );
+		$default_marker     = get_option( '_geopress_marker', GEOPRESS_URL . 'images/marker.svg' );
 		$default_zoom_level = (int) get_option( '_geopress_default_zoom_level', 11 );
 		$map_view_type      = get_option( '_geopress_map_type', 'hybrid' );
 		$map_controls_zoom  = get_option( '_geopress_controls_zoom', 'small' );
@@ -284,9 +284,9 @@ class GeoPress_Admin {
 				<td>
 					<dl>
 						<dt><label for="default_mapwidth"><?php esc_html_e( 'Map Width', 'geopress' ); ?>:</label></dt>
-						<dd><input type="number" name="default_mapwidth" id="default_mapwidth" value="<?php echo esc_attr( $default_mapwidth ); ?>" style="width:10%" /> px</dd>
+						<dd><input type="number" name="default_mapwidth" id="default_mapwidth" value="<?php echo esc_attr( $default_mapwidth ); ?>" style="width:5em" /> px</dd>
 						<dt><label for="default_mapheight"><?php esc_html_e( 'Map Height', 'geopress' ); ?>:</label></dt>
-						<dd><input type="number" name="default_mapheight" id="default_mapheight" value="<?php echo esc_attr( $default_mapheight ); ?>" style="width:10%" /> px</dd>
+						<dd><input type="number" name="default_mapheight" id="default_mapheight" value="<?php echo esc_attr( $default_mapheight ); ?>" style="width:5em" /> px</dd>
 						<dt><label for="default_zoom_level"><?php esc_html_e( 'Default Zoom', 'geopress' ); ?>:</label></dt>
 						<dd>
 							<select name="default_zoom_level" id="default_zoom_level" onchange="geopress_change_zoom();">

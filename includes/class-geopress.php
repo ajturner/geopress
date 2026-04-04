@@ -49,7 +49,7 @@ class GeoPress {
 		// add_option() is a no-op when the option already exists.
 		add_option( '_geopress_mapwidth',          '400' );
 		add_option( '_geopress_mapheight',         '200' );
-		add_option( '_geopress_marker',            GEOPRESS_URL . 'flag.png' );
+		add_option( '_geopress_marker',            GEOPRESS_URL . 'images/marker.svg' );
 		add_option( '_geopress_rss_enable',        'true' );
 		add_option( '_geopress_rss_format',        'simple' );
 		add_option( '_geopress_map_format',        'openlayers' );

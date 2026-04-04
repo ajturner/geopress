@@ -26,7 +26,7 @@ class GeoPress_Maps {
 			$locations = $wpdb->get_results( "SELECT * FROM {$table}" );
 		}
 
-		$geopress_marker = get_option( '_geopress_marker', GEOPRESS_URL . 'flag.png' );
+		$geopress_marker = get_option( '_geopress_marker', GEOPRESS_URL . 'images/marker.svg' );
 
 		$output  = geopress_map_select( 250, 250, 'float:right;' );
 		$output .= '<script type="text/javascript">' . "\n";
@@ -70,7 +70,7 @@ class GeoPress_Maps {
  */
 function geopress_map( $height = '', $width = '', $locations = -1, $unique_id = false, $loop_locations = false, $zoom_level = -1, $url = '' ) {
 	$map_format      = GeoPress::mapstraction_map_format();
-	$geopress_marker = get_option( '_geopress_marker', GEOPRESS_URL . 'flag.png' );
+	$geopress_marker = get_option( '_geopress_marker', GEOPRESS_URL . 'images/marker.svg' );
 
 	if ( '' === $height || '' === $width ) {
 		$height = (int) get_option( '_geopress_mapheight', 200 );
@@ -214,7 +214,7 @@ $geopress_map_index = 1;
 function geopress_post_map( $height = '', $width = '', $controls = true, $overlay = '' ) {
 	global $post, $geopress_map_index;
 
-	$geopress_marker = get_option( '_geopress_marker', GEOPRESS_URL . 'flag.png' );
+	$geopress_marker = get_option( '_geopress_marker', GEOPRESS_URL . 'images/marker.svg' );
 	$geo             = GeoPress::get_geo( $post->ID );
 
 	if ( ! $geo ) {
