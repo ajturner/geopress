@@ -1,0 +1,26 @@
+{
+    "name": "geopress/geopress",
+    "description": "GeoPress WordPress plugin — adds geographic tagging to posts",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0+",
+    "authors": [
+        {"name": "Andrew Turner"},
+        {"name": "Mikel Maron"}
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6",
+        "yoast/wp-test-utils": "^1.0"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-html=coverage"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}
