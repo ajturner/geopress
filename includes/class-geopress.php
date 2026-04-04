@@ -688,11 +688,15 @@ class GeoPress {
 			);
 		}
 
-		$google_apikey = get_option( '_geopress_google_apikey', '' );
-		if ( '' !== $google_apikey ) {
+		if ( 'google' === $map_format ) {
+			$google_apikey = get_option( '_geopress_google_apikey', '' );
+			$google_url    = 'https://maps.googleapis.com/maps/api/js';
+			if ( '' !== $google_apikey ) {
+				$google_url = add_query_arg( 'key', rawurlencode( $google_apikey ), $google_url );
+			}
 			wp_enqueue_script(
 				'geopress-google-maps',
-				'https://maps.google.com/maps?file=api&v=2&key=' . rawurlencode( $google_apikey ),
+				$google_url,
 				array(),
 				null,
 				false
