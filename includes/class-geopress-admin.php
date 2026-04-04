@@ -162,77 +162,187 @@ class GeoPress_Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'geopress' ) );
 		}
 
-		if ( isset( $_POST['Options'] ) && check_admin_referer( 'geopress_locations_nonce', 'geopress_nonce' ) ) {
-			$locnames    = isset( $_POST['locname'] )    ? (array) wp_unslash( $_POST['locname'] )    : array();
-			$locaddrs    = isset( $_POST['locaddr'] )    ? (array) wp_unslash( $_POST['locaddr'] )    : array();
-			$locids      = isset( $_POST['locid'] )      ? (array) wp_unslash( $_POST['locid'] )      : array();
-			$locvisibles = isset( $_POST['locvisible'] ) ? (array) wp_unslash( $_POST['locvisible'] ) : array();
+		$notices = array();
 
-			foreach ( $locnames as $i => $raw_name ) {
-				$name = sanitize_text_field( $raw_name );
-				$addr = sanitize_text_field( $locaddrs[ $i ] ?? '' );
-				$lid  = (int) ( $locids[ $i ] ?? 0 );
-				$vis  = isset( $locvisibles[ $i ] ) ? 1 : 0;
+		if ( isset( $_POST['geopress_nonce'] ) && check_admin_referer( 'geopress_locations_nonce', 'geopress_nonce' ) ) {
 
-				if ( preg_match( '/\[(.+),[ ]?(.+)\]/', $addr, $m ) ) {
-					$lat = trim( $m[1] );
-					$lon = trim( $m[2] );
+			// ── Add a new location ──────────────────────────────────────────
+			if ( isset( $_POST['add_location'] ) ) {
+				$name = sanitize_text_field( wp_unslash( $_POST['new_locname'] ?? '' ) );
+				$addr = sanitize_text_field( wp_unslash( $_POST['new_locaddr'] ?? '' ) );
+
+				if ( '' === $addr ) {
+					$notices[] = array( 'error', __( 'Address is required to add a location.', 'geopress' ) );
 				} else {
 					list( $lat, $lon ) = geocode( $addr );
+					list( $warn, $mapurl ) = yahoo_mapurl( $addr );
+
+					if ( '' === $lat || '' === $lon ) {
+						$notices[] = array( 'error', sprintf(
+							/* translators: %s: address that could not be geocoded */
+							__( 'Could not geocode &#8220;%s&#8221;. Check the address or use [lat, lon] format.', 'geopress' ),
+							esc_html( $addr )
+						) );
+					} else {
+						GeoPress::save_geo( -1, $name, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, 1 );
+						$notices[] = array( 'updated', sprintf(
+							/* translators: 1: location name, 2: coordinates */
+							__( 'Location &#8220;%1$s&#8221; added at %2$s.', 'geopress' ),
+							esc_html( $name ?: $addr ),
+							esc_html( "{$lat}, {$lon}" )
+						) );
+					}
 				}
 
-				list( $warn, $mapurl ) = yahoo_mapurl( $addr );
-				GeoPress::save_geo( $lid, $name, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, $vis );
-			}
+			// ── Delete a location ───────────────────────────────────────────
+			} elseif ( isset( $_POST['delete_location'] ) ) {
+				$del_id = (int) $_POST['delete_location'];
+				if ( $del_id ) {
+					GeoPress::delete_location( $del_id );
+					$notices[] = array( 'updated', __( 'Location deleted.', 'geopress' ) );
+				}
 
-			echo '<div class="updated"><p><strong>' . esc_html__( 'Locations updated.', 'geopress' ) . '</strong></p></div>';
+			// ── Save edits to existing locations ────────────────────────────
+			} elseif ( isset( $_POST['save_locations'] ) ) {
+				$locnames    = isset( $_POST['locname'] )    ? (array) wp_unslash( $_POST['locname'] )    : array();
+				$locaddrs    = isset( $_POST['locaddr'] )    ? (array) wp_unslash( $_POST['locaddr'] )    : array();
+				$locids      = isset( $_POST['locid'] )      ? (array) wp_unslash( $_POST['locid'] )      : array();
+				$locvisibles = isset( $_POST['locvisible'] ) ? (array) wp_unslash( $_POST['locvisible'] ) : array();
+
+				foreach ( $locnames as $i => $raw_name ) {
+					$name = sanitize_text_field( $raw_name );
+					$addr = sanitize_text_field( $locaddrs[ $i ] ?? '' );
+					$lid  = (int) ( $locids[ $i ] ?? 0 );
+					$vis  = isset( $locvisibles[ $i ] ) ? 1 : 0;
+
+					// Re-geocode if address changed (new addr won't match stored coord).
+					$existing = GeoPress::get_location( $lid );
+					if ( $existing && $existing->loc !== $addr ) {
+						list( $lat, $lon ) = geocode( $addr );
+					} elseif ( $existing && '' !== trim( $existing->coord ) ) {
+						$parts = preg_split( '/\s+/', trim( $existing->coord ) );
+						$lat   = $parts[0] ?? '';
+						$lon   = $parts[1] ?? '';
+					} else {
+						list( $lat, $lon ) = geocode( $addr );
+					}
+
+					list( $warn, $mapurl ) = yahoo_mapurl( $addr );
+					GeoPress::save_geo( $lid, $name, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, $vis );
+				}
+
+				$notices[] = array( 'updated', __( 'Locations saved.', 'geopress' ) );
+			}
 		}
 
+		// Reload locations after any changes.
 		global $wpdb;
-		$table  = $wpdb->prefix . 'geopress';
-		$result = $wpdb->get_results( "SELECT * FROM {$table}" );
-
-		echo '<div class="wrap"><h2>' . esc_html__( 'Configure Locations', 'geopress' ) . '</h2>';
-		echo '<form method="post">';
-		wp_nonce_field( 'geopress_locations_nonce', 'geopress_nonce' );
+		$table     = $wpdb->prefix . 'geopress';
+		$locations = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY geopress_id ASC" );
 		?>
-		<div style="width: 70%; float: left;">
-			<table width="100%" cellpadding="3" cellspacing="3">
+		<div class="wrap">
+		<h1><?php esc_html_e( 'Locations', 'geopress' ); ?></h1>
+
+		<?php foreach ( $notices as $notice ) : ?>
+		<div class="notice notice-<?php echo esc_attr( $notice[0] ); ?> is-dismissible">
+			<p><?php echo wp_kses_post( $notice[1] ); ?></p>
+		</div>
+		<?php endforeach; ?>
+
+		<?php /* ── Add New Location ── */ ?>
+		<h2><?php esc_html_e( 'Add New Location', 'geopress' ); ?></h2>
+		<form method="post" style="max-width:600px;">
+			<?php wp_nonce_field( 'geopress_locations_nonce', 'geopress_nonce' ); ?>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row">
+						<label for="new_locname"><?php esc_html_e( 'Label', 'geopress' ); ?></label>
+					</th>
+					<td>
+						<input type="text" id="new_locname" name="new_locname" class="regular-text"
+							placeholder="<?php esc_attr_e( 'e.g. Home, Conference Centre', 'geopress' ); ?>" />
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="new_locaddr"><?php esc_html_e( 'Address', 'geopress' ); ?></label>
+					</th>
+					<td>
+						<input type="text" id="new_locaddr" name="new_locaddr" class="regular-text"
+							placeholder="<?php esc_attr_e( 'Address or [lat, lon]', 'geopress' ); ?>" required />
+						<p class="description">
+							<?php esc_html_e( 'Address is geocoded via OpenStreetMap. For exact coordinates use [lat, lon] format, e.g. [51.5, -0.1].', 'geopress' ); ?>
+						</p>
+					</td>
+				</tr>
+			</table>
+			<p class="submit">
+				<input type="submit" name="add_location" class="button button-primary"
+					value="<?php esc_attr_e( 'Add Location', 'geopress' ); ?>" />
+			</p>
+		</form>
+
+		<?php /* ── Existing Locations ── */ ?>
+		<h2><?php esc_html_e( 'Existing Locations', 'geopress' ); ?></h2>
+		<?php if ( empty( $locations ) ) : ?>
+			<p><?php esc_html_e( 'No locations saved yet.', 'geopress' ); ?></p>
+		<?php else : ?>
+		<form method="post">
+			<?php wp_nonce_field( 'geopress_locations_nonce', 'geopress_nonce' ); ?>
+			<table class="wp-list-table widefat fixed striped" style="max-width:900px;">
 				<thead>
 					<tr>
-						<th scope="col" align="left"><?php esc_html_e( 'Show', 'geopress' ); ?></th>
-						<th scope="col" align="left"><?php esc_html_e( 'Name', 'geopress' ); ?></th>
-						<th scope="col" align="left"><?php esc_html_e( 'Address', 'geopress' ); ?></th>
-						<th scope="col" align="left"><?php esc_html_e( 'Geometry', 'geopress' ); ?></th>
+						<th scope="col" style="width:5%;"><?php esc_html_e( 'Show', 'geopress' ); ?></th>
+						<th scope="col" style="width:20%;"><?php esc_html_e( 'Label', 'geopress' ); ?></th>
+						<th scope="col" style="width:35%;"><?php esc_html_e( 'Address', 'geopress' ); ?></th>
+						<th scope="col" style="width:25%;"><?php esc_html_e( 'Coordinates', 'geopress' ); ?></th>
+						<th scope="col" style="width:15%;"></th>
 					</tr>
 				</thead>
 				<tbody>
-				<?php $i = -1; foreach ( $result as $loc ) : $i++; ?>
+				<?php $i = 0; foreach ( $locations as $loc ) : ?>
 					<tr>
-						<td width="5%">
+						<td>
 							<input type="hidden" name="locid[<?php echo $i; ?>]" value="<?php echo esc_attr( $loc->geopress_id ); ?>" />
-							<input type="checkbox" value="1" name="locvisible[<?php echo $i; ?>]" <?php checked( (bool) $loc->visible ); ?> />
-						</td>
-						<td width="15%">
-							<input size="10" type="text" value="<?php echo esc_attr( $loc->name ); ?>" name="locname[<?php echo $i; ?>]" />
-						</td>
-						<td width="50%">
-							<input size="40" type="text" value="<?php echo esc_attr( $loc->loc ); ?>" name="locaddr[<?php echo $i; ?>]" />
+							<input type="checkbox" name="locvisible[<?php echo $i; ?>]" value="1"
+								<?php checked( (bool) $loc->visible ); ?>
+								title="<?php esc_attr_e( 'Show on maps', 'geopress' ); ?>" />
 						</td>
 						<td>
-							<input type="text" disabled="disabled" value="<?php echo esc_attr( $loc->coord ); ?>" name="loccoord[<?php echo $i; ?>]" />
+							<input type="text" name="locname[<?php echo $i; ?>]"
+								value="<?php echo esc_attr( $loc->name ); ?>"
+								style="width:100%" />
+						</td>
+						<td>
+							<input type="text" name="locaddr[<?php echo $i; ?>]"
+								value="<?php echo esc_attr( $loc->loc ); ?>"
+								style="width:100%" />
+						</td>
+						<td style="font-family:monospace; font-size:12px; color:#555;">
+							<?php echo esc_html( $loc->coord ); ?>
+						</td>
+						<td>
+							<button type="submit" name="delete_location" value="<?php echo esc_attr( $loc->geopress_id ); ?>"
+								class="button button-small"
+								onclick="return confirm('<?php echo esc_js( __( 'Delete this location?', 'geopress' ) ); ?>');">
+								<?php esc_html_e( 'Delete', 'geopress' ); ?>
+							</button>
 						</td>
 					</tr>
-				<?php endforeach; ?>
+				<?php $i++; endforeach; ?>
 				</tbody>
 			</table>
-			<div class="submit">
-				<input type="submit" name="Options" value="<?php echo esc_attr__( 'Save Locations', 'geopress' ); ?> &raquo;" />
-			</div>
+			<p class="submit">
+				<input type="submit" name="save_locations" class="button button-primary"
+					value="<?php esc_attr_e( 'Save Changes', 'geopress' ); ?>" />
+			</p>
+		</form>
+
+		<?php GeoPress_Maps::admin_locations_map( $locations ); ?>
+
+		<?php endif; ?>
 		</div>
 		<?php
-		GeoPress_Maps::map_saved_locations( $result );
-		echo '</form></div>';
 	}
 
 	// ── Maps page ─────────────────────────────────────────────────────────────

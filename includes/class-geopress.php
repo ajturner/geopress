@@ -322,6 +322,31 @@ class GeoPress {
 		return $geo_id;
 	}
 
+	/**
+	 * Deletes a location record and removes any associated post-meta references.
+	 *
+	 * @param int $loc_id
+	 */
+	public static function delete_location( $loc_id ) {
+		global $wpdb;
+
+		$loc_id = (int) $loc_id;
+		if ( ! $loc_id ) {
+			return;
+		}
+
+		$table = $wpdb->prefix . 'geopress';
+		$wpdb->delete( $table, array( 'geopress_id' => $loc_id ), array( '%d' ) );
+		$wpdb->delete(
+			$wpdb->postmeta,
+			array(
+				'meta_key'   => '_geopress_id',
+				'meta_value' => $loc_id,
+			),
+			array( '%s', '%d' )
+		);
+	}
+
 	// ── Dropdown helper ───────────────────────────────────────────────────────
 
 	/**
@@ -628,7 +653,9 @@ class GeoPress {
 	 * @param string $hook  Current admin page hook.
 	 */
 	public static function enqueue_admin_scripts( $hook ) {
-		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) {
+		$is_post_editor    = in_array( $hook, array( 'post.php', 'post-new.php' ), true );
+		$is_geopress_admin = false !== strpos( $hook, 'geopress' );
+		if ( ! $is_post_editor && ! $is_geopress_admin ) {
 			return;
 		}
 		self::register_scripts();

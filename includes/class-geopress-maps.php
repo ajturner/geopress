@@ -52,6 +52,51 @@ class GeoPress_Maps {
 
 		echo $output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
+	/**
+	 * Outputs a display-only map of all stored locations using the configured
+	 * map provider and dimensions. Used on the admin Locations page.
+	 *
+	 * @param array $locations  Array of location objects from the geopress table.
+	 */
+	public static function admin_locations_map( $locations ) {
+		$width      = (int) get_option( '_geopress_mapwidth', 400 );
+		$height     = (int) get_option( '_geopress_mapheight', 200 );
+		$format     = GeoPress::mapstraction_map_format();
+		$marker     = get_option( '_geopress_marker', GEOPRESS_URL . 'images/marker.svg' );
+		$has_coords = false;
+
+		$rows_js = '';
+		foreach ( $locations as $row ) {
+			if ( '' === trim( $row->coord ) ) {
+				continue;
+			}
+			$has_coords = true;
+			$coords     = preg_split( '/\s+/', trim( $row->coord ) );
+			$lat        = isset( $coords[0] ) ? (float) $coords[0] : 0;
+			$lon        = isset( $coords[1] ) ? (float) $coords[1] : 0;
+			$label      = esc_js( $row->name );
+			$icon       = esc_js( $marker );
+			$rows_js   .= "var mp=new Marker(new LatLonPoint({$lat},{$lon}));\n";
+			$rows_js   .= "lmap.addMarkerWithData(mp,{infoBubble:\"{$label}\",icon:\"{$icon}\",iconSize:[24,24]});\n";
+		}
+
+		if ( ! $has_coords ) {
+			return;
+		}
+		?>
+		<h3><?php esc_html_e( 'Locations Map', 'geopress' ); ?></h3>
+		<div id="gp_locs_map" class="mapstraction"
+			style="width:<?php echo $width; ?>px; height:<?php echo $height; ?>px; margin: 0.5em 0 1em;"></div>
+		<script type="text/javascript">
+		geopress_addEvent(window, 'load', function() {
+			var lmap = new Mapstraction('gp_locs_map', '<?php echo esc_js( $format ); ?>');
+			lmap.addControls({pan:true, zoom:'small', overview:false, scale:true, map_type:true});
+			<?php echo $rows_js; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			lmap.autoCenterAndZoom();
+		});
+		</script>
+		<?php
+	}
 }
 
 // ── Standalone map template functions ─────────────────────────────────────────
