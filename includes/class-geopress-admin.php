@@ -365,6 +365,15 @@ class GeoPress_Admin {
 			update_option( '_geopress_controls_scale',     isset( $_POST['map_controls_scale'] ) );
 			update_option( '_geopress_default_zoom_level', (int) ( $_POST['default_zoom_level'] ?? 11 ) );
 
+			// ArcGIS Maps SDK v5 settings.
+			update_option( '_geopress_arcgis_portal_url',           esc_url_raw( wp_unslash( $_POST['arcgis_portal_url'] ?? 'https://www.arcgis.com' ) ) );
+			update_option( '_geopress_arcgis_api_key',              sanitize_text_field( wp_unslash( $_POST['arcgis_api_key'] ?? '' ) ) );
+			update_option( '_geopress_arcgis_basemap',              sanitize_text_field( wp_unslash( $_POST['arcgis_basemap'] ?? 'arcgis/navigation' ) ) );
+			update_option( '_geopress_arcgis_webmap_item_id',       sanitize_text_field( wp_unslash( $_POST['arcgis_webmap_item_id'] ?? '' ) ) );
+			update_option( '_geopress_arcgis_webscene_item_id',     sanitize_text_field( wp_unslash( $_POST['arcgis_webscene_item_id'] ?? '' ) ) );
+			update_option( '_geopress_arcgis_feature_layer_url',    esc_url_raw( wp_unslash( $_POST['arcgis_feature_layer_url'] ?? '' ) ) );
+			update_option( '_geopress_arcgis_feature_layer_item_id', sanitize_text_field( wp_unslash( $_POST['arcgis_feature_layer_item_id'] ?? '' ) ) );
+
 			echo '<div class="updated"><p><strong>' . esc_html__( 'Map layout updated.', 'geopress' ) . '</strong></p></div>';
 		}
 
@@ -449,6 +458,7 @@ class GeoPress_Admin {
 							'microsoft'     => 'Microsoft',
 							'openstreetmap' => 'OpenStreetMap',
 							'openlayers'    => 'OpenLayers',
+							'arcgis'        => 'ArcGIS',
 						);
 						foreach ( $formats as $val => $label ) {
 							printf(
@@ -516,6 +526,93 @@ class GeoPress_Admin {
 			</tr>
 		</table>
 		</fieldset>
+
+		<?php
+		$arcgis_portal_url          = get_option( '_geopress_arcgis_portal_url', 'https://www.arcgis.com' );
+		$arcgis_api_key             = get_option( '_geopress_arcgis_api_key', '' );
+		$arcgis_basemap             = get_option( '_geopress_arcgis_basemap', 'arcgis/navigation' );
+		$arcgis_webmap_item_id      = get_option( '_geopress_arcgis_webmap_item_id', '' );
+		$arcgis_webscene_item_id    = get_option( '_geopress_arcgis_webscene_item_id', '' );
+		$arcgis_fl_url              = get_option( '_geopress_arcgis_feature_layer_url', '' );
+		$arcgis_fl_item_id          = get_option( '_geopress_arcgis_feature_layer_item_id', '' );
+		?>
+		<h3><?php esc_html_e( 'ArcGIS Settings', 'geopress' ); ?></h3>
+		<p><em><?php esc_html_e( 'These settings apply when Map Format is set to ArcGIS. They allow loading web maps, web scenes, and feature layers from ArcGIS Online or an ArcGIS Enterprise portal.', 'geopress' ); ?></em></p>
+		<fieldset class="options">
+		<table width="100%" cellspacing="2" cellpadding="5" class="editform">
+			<tr valign="top">
+				<th width="33%" scope="row"><label for="arcgis_portal_url"><?php esc_html_e( 'Portal URL', 'geopress' ); ?>:</label></th>
+				<td>
+					<input type="url" name="arcgis_portal_url" id="arcgis_portal_url" value="<?php echo esc_attr( $arcgis_portal_url ); ?>" style="width:50%;" />
+					<br /><em><?php esc_html_e( 'ArcGIS Online or Enterprise portal URL. Default: https://www.arcgis.com', 'geopress' ); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><label for="arcgis_api_key"><?php esc_html_e( 'API Key', 'geopress' ); ?>:</label></th>
+				<td>
+					<input type="text" name="arcgis_api_key" id="arcgis_api_key" value="<?php echo esc_attr( $arcgis_api_key ); ?>" style="width:50%;" />
+					<br /><em><?php esc_html_e( 'ArcGIS Platform API key. Required for accessing private content or using ArcGIS basemap styles.', 'geopress' ); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><label for="arcgis_basemap"><?php esc_html_e( 'Default Basemap', 'geopress' ); ?>:</label></th>
+				<td>
+					<select name="arcgis_basemap" id="arcgis_basemap">
+						<?php
+						$basemaps = array(
+							'arcgis/navigation'  => __( 'Navigation (streets)', 'geopress' ),
+							'arcgis/streets'     => __( 'Streets', 'geopress' ),
+							'arcgis/imagery'     => __( 'Imagery (satellite)', 'geopress' ),
+							'arcgis/terrain'     => __( 'Terrain', 'geopress' ),
+							'arcgis/oceans'      => __( 'Oceans', 'geopress' ),
+							'arcgis/community'   => __( 'Community', 'geopress' ),
+							'arcgis/light-gray'  => __( 'Light Gray', 'geopress' ),
+							'arcgis/dark-gray'   => __( 'Dark Gray', 'geopress' ),
+						);
+						foreach ( $basemaps as $val => $label ) {
+							printf(
+								'<option value="%s"%s>%s</option>',
+								esc_attr( $val ),
+								selected( $arcgis_basemap, $val, false ),
+								esc_html( $label )
+							);
+						}
+						?>
+					</select>
+					<br /><em><?php esc_html_e( 'Used when no Web Map Item ID is specified.', 'geopress' ); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><label for="arcgis_webmap_item_id"><?php esc_html_e( 'Web Map Item ID', 'geopress' ); ?>:</label></th>
+				<td>
+					<input type="text" name="arcgis_webmap_item_id" id="arcgis_webmap_item_id" value="<?php echo esc_attr( $arcgis_webmap_item_id ); ?>" style="width:40%;" />
+					<br /><em><?php esc_html_e( 'Portal item ID of a Web Map to use as the default map base. Overrides the basemap setting above. Leave blank to use the default basemap.', 'geopress' ); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><label for="arcgis_webscene_item_id"><?php esc_html_e( 'Web Scene Item ID', 'geopress' ); ?>:</label></th>
+				<td>
+					<input type="text" name="arcgis_webscene_item_id" id="arcgis_webscene_item_id" value="<?php echo esc_attr( $arcgis_webscene_item_id ); ?>" style="width:40%;" />
+					<br /><em><?php esc_html_e( 'Portal item ID of a 3D Web Scene. When set, INSERT_MAP will render a 3D SceneView instead of a 2D MapView.', 'geopress' ); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><label for="arcgis_feature_layer_url"><?php esc_html_e( 'Feature Layer URL', 'geopress' ); ?>:</label></th>
+				<td>
+					<input type="url" name="arcgis_feature_layer_url" id="arcgis_feature_layer_url" value="<?php echo esc_attr( $arcgis_fl_url ); ?>" style="width:60%;" />
+					<br /><em><?php esc_html_e( 'URL of a Feature Layer service to overlay on all ArcGIS maps. Takes precedence over Feature Layer Item ID if both are set.', 'geopress' ); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><label for="arcgis_feature_layer_item_id"><?php esc_html_e( 'Feature Layer Item ID', 'geopress' ); ?>:</label></th>
+				<td>
+					<input type="text" name="arcgis_feature_layer_item_id" id="arcgis_feature_layer_item_id" value="<?php echo esc_attr( $arcgis_fl_item_id ); ?>" style="width:40%;" />
+					<br /><em><?php esc_html_e( 'Portal item ID of a Feature Layer to overlay on all ArcGIS maps. Used only when Feature Layer URL is empty.', 'geopress' ); ?></em>
+				</td>
+			</tr>
+		</table>
+		</fieldset>
+
 		<div class="submit">
 			<input type="submit" name="Options" value="<?php echo esc_attr__( 'Save Map Layout', 'geopress' ); ?> &raquo;" />
 		</div>

@@ -63,6 +63,15 @@ class GeoPress {
 		add_option( '_geopress_default_zoom_level','11' );
 		add_option( '_geopress_google_apikey',     '' );
 
+		// ArcGIS Maps SDK v5 options.
+		add_option( '_geopress_arcgis_portal_url',          'https://www.arcgis.com' );
+		add_option( '_geopress_arcgis_api_key',             '' );
+		add_option( '_geopress_arcgis_basemap',             'arcgis/navigation' );
+		add_option( '_geopress_arcgis_webmap_item_id',      '' );
+		add_option( '_geopress_arcgis_webscene_item_id',    '' );
+		add_option( '_geopress_arcgis_feature_layer_url',   '' );
+		add_option( '_geopress_arcgis_feature_layer_item_id', '' );
+
 		$ping_sites = get_option( 'ping_sites', '' );
 		if ( false === strpos( $ping_sites, 'mapufacture' ) ) {
 			update_option( 'ping_sites', $ping_sites . "\nhttps://mapufacture.com/georss/ping/api" );
@@ -451,6 +460,34 @@ class GeoPress {
 	public static function embed_map_inpost( $content ) {
 		$default_add_map = (int) get_option( '_geopress_default_add_map', 0 );
 
+		// INSERT_ARCGIS_WEBMAP — standalone ArcGIS web map by portal item ID.
+		if ( preg_match( '/INSERT_ARCGIS_WEBMAP/', $content ) ) {
+			$content = preg_replace_callback(
+				'/INSERT_ARCGIS_WEBMAP\(([^,)]+),[ ]?(\d+),[ ]?(\d+)\)/',
+				function ( $m ) { return geopress_arcgis_webmap_embed( trim( $m[1] ), (int) $m[2], (int) $m[3] ); },
+				$content
+			);
+			$content = preg_replace_callback(
+				'/INSERT_ARCGIS_WEBMAP\(([^)]+)\)/',
+				function ( $m ) { return geopress_arcgis_webmap_embed( trim( $m[1] ) ); },
+				$content
+			);
+		}
+
+		// INSERT_ARCGIS_WEBSCENE — standalone ArcGIS 3D web scene by portal item ID.
+		if ( preg_match( '/INSERT_ARCGIS_WEBSCENE/', $content ) ) {
+			$content = preg_replace_callback(
+				'/INSERT_ARCGIS_WEBSCENE\(([^,)]+),[ ]?(\d+),[ ]?(\d+)\)/',
+				function ( $m ) { return geopress_arcgis_webscene_embed( trim( $m[1] ), (int) $m[2], (int) $m[3] ); },
+				$content
+			);
+			$content = preg_replace_callback(
+				'/INSERT_ARCGIS_WEBSCENE\(([^)]+)\)/',
+				function ( $m ) { return geopress_arcgis_webscene_embed( trim( $m[1] ) ); },
+				$content
+			);
+		}
+
 		if ( preg_match( '/INSERT_MAP/', $content ) ) {
 			// INSERT_MAP(h,w,url)
 			$content = preg_replace_callback(
@@ -643,8 +680,10 @@ class GeoPress {
 	 */
 	public static function enqueue_scripts() {
 		self::register_scripts();
-		wp_enqueue_script( 'geopress-mapstraction' );
-		wp_enqueue_script( 'geopress-js' );
+		if ( 'arcgis' !== get_option( '_geopress_map_format', 'openlayers' ) ) {
+			wp_enqueue_script( 'geopress-mapstraction' );
+			wp_enqueue_script( 'geopress-js' );
+		}
 		self::enqueue_map_api_scripts();
 	}
 
@@ -660,6 +699,7 @@ class GeoPress {
 			return;
 		}
 		self::register_scripts();
+		// Always enqueue Mapstraction for the admin location-picker regardless of format.
 		wp_enqueue_script( 'geopress-mapstraction' );
 		wp_enqueue_script( 'geopress-js' );
 		self::enqueue_map_api_scripts();
@@ -690,6 +730,41 @@ class GeoPress {
 			GEOPRESS_VERSION,
 			false
 		);
+
+		// ArcGIS Maps SDK v5 — web components bundle and our ES-module helper.
+		wp_register_style(
+			'geopress-arcgis-css',
+			'https://js.arcgis.com/5.x/esri/themes/light/main.css',
+			array(),
+			null
+		);
+		wp_register_script(
+			'geopress-arcgis-components',
+			'https://js.arcgis.com/map-components/5.x/arcgis-map-components.esm.js',
+			array(),
+			null,
+			false
+		);
+		wp_register_script(
+			'geopress-arcgis-js',
+			GEOPRESS_URL . 'arcgis-map.js',
+			array( 'geopress-arcgis-components' ),
+			GEOPRESS_VERSION,
+			false
+		);
+
+		// Both ArcGIS scripts must be served as ES modules.
+		add_filter(
+			'script_loader_tag',
+			function ( $tag, $handle ) {
+				if ( in_array( $handle, array( 'geopress-arcgis-components', 'geopress-arcgis-js' ), true ) ) {
+					return str_replace( ' src=', ' type="module" src=', $tag );
+				}
+				return $tag;
+			},
+			10,
+			2
+		);
 	}
 
 	/**
@@ -697,6 +772,24 @@ class GeoPress {
 	 */
 	private static function enqueue_map_api_scripts() {
 		$map_format = get_option( '_geopress_map_format', 'openlayers' );
+
+		// ArcGIS Maps SDK v5 — web components path (bypasses Mapstraction entirely).
+		if ( 'arcgis' === $map_format ) {
+			wp_enqueue_style( 'geopress-arcgis-css' );
+			wp_enqueue_script( 'geopress-arcgis-components' );
+			wp_enqueue_script( 'geopress-arcgis-js' );
+			wp_add_inline_script(
+				'geopress-arcgis-js',
+				'window.geopressArcGISConfig = ' . wp_json_encode(
+					array(
+						'apiKey'    => get_option( '_geopress_arcgis_api_key', '' ),
+						'portalUrl' => get_option( '_geopress_arcgis_portal_url', 'https://www.arcgis.com' ),
+					)
+				) . ';',
+				'before'
+			);
+			return;
+		}
 
 		// Enqueue the OpenLayers library only when it is the active provider.
 		if ( in_array( $map_format, array( 'openlayers', 'openstreetmap' ), true ) ) {
