@@ -55,7 +55,6 @@ register_activation_hook( __FILE__, array( 'GeoPress', 'install' ) );
 
 // ── Post editor metabox ──────────────────────────────────────────────────────
 
-add_action( 'edit_form_advanced',     array( 'GeoPress_Admin', 'location_edit_form' ) );
 add_action( 'edit_form_after_editor', array( 'GeoPress_Admin', 'location_edit_form' ) );
 
 // ── Location query hooks ─────────────────────────────────────────────────────
