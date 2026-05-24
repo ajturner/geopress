@@ -156,6 +156,7 @@ class GeoPress {
 				}
 			}
 		}
+		rewind_posts();
 
 		$locations = array();
 		foreach ( $result as $loc ) {

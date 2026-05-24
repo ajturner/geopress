@@ -29,8 +29,7 @@ if ( empty( $wp ) ) {
 		header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
 		exit;
 	}
-	$posts_per_page = -1;
-	wp( 'feed=1' );
+	wp( 'feed=1&posts_per_page=-1' );
 }
 
 $blog_charset = get_option( 'blog_charset', 'UTF-8' );

@@ -7,8 +7,26 @@
  */
 
 if ( empty( $wp ) ) {
-	require_once 'wp-config.php';
-	wp();
+	$wp_load_paths = array(
+		dirname( __FILE__, 3 ) . '/wp-load.php',
+		dirname( __FILE__, 4 ) . '/wp-load.php',
+	);
+
+	$wp_loaded = false;
+	foreach ( $wp_load_paths as $wp_load_path ) {
+		if ( file_exists( $wp_load_path ) ) {
+			require_once $wp_load_path;
+			$wp_loaded = true;
+			break;
+		}
+	}
+
+	if ( ! $wp_loaded ) {
+		header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
+		exit;
+	}
+
+	wp( 'feed=1&posts_per_page=-1' );
 }
 
 $blog_charset = get_option( 'blog_charset', 'UTF-8' );

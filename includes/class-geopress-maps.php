@@ -288,12 +288,14 @@ function geopress_post_map( $height = '', $width = '', $controls = true, $overla
 	$output .= esc_js( GeoPress::mapstraction_map_format( $geo->map_format ) ) . '",';
 	$output .= GeoPress::mapstraction_map_type( $geo->map_type ) . ', ' . $map_controls . ',';
 	$output .= GeoPress::mapstraction_map_zoom( $geo->map_zoom ) . ', "' . esc_js( $geopress_marker ) . '"';
-	$output .= ') });';
+	$output .= ')';
 
 	if ( '' !== $overlay ) {
-		$output .= 'geo_map' . $map_id . '.addOverlay("' . esc_js( $overlay ) . '");';
+		// geo_maps[num_maps] is the map just created by geopress_makemap above.
+		$output .= '; geo_maps[num_maps].addOverlay("' . esc_js( $overlay ) . '")';
 	}
 
+	$output .= '; });';
 	$output .= "</script><!-- end GeoPress Map -->\n";
 
 	$geopress_map_index++;
@@ -342,7 +344,7 @@ function geopress_rand_id() {
  * Outputs an HTML link to the KML NetworkLink file.
  */
 function geopress_kml_link() {
-	$url = plugin_dir_url( dirname( __FILE__ ) ) . 'wp-kml-link.php';
+	$url = GEOPRESS_URL . 'wp-kml-link.php';
 	echo '<a href="' . esc_url( $url ) . '" title="KML Link">KML</a>';
 }
 
@@ -352,7 +354,7 @@ function geopress_kml_link() {
 function geopress_locations_list() {
 	$locations = GeoPress::get_locations();
 	foreach ( $locations as $loc ) {
-		$url = add_query_arg( 'location', rawurlencode( $loc->name ), home_url( '/' ) );
+		$url = add_query_arg( 'location', $loc->name, home_url( '/' ) );
 		echo '<li><a href="' . esc_url( $url ) . '">' . esc_html( $loc->name ) . '</a></li>';
 	}
 }
