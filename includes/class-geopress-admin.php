@@ -446,7 +446,6 @@ class GeoPress_Admin {
 						<?php
 						$formats = array(
 							'google'        => 'Google',
-							'yahoo'         => 'Yahoo',
 							'microsoft'     => 'Microsoft',
 							'openstreetmap' => 'OpenStreetMap',
 							'openlayers'    => 'OpenLayers',
@@ -537,7 +536,6 @@ class GeoPress_Admin {
 			update_option( '_geopress_rss_format',     sanitize_key( wp_unslash( $_POST['georss_format'] ?? 'simple' ) ) );
 			update_option( '_geopress_default_add_map',(int) ( $_POST['default_add_map'] ?? 0 ) );
 			update_option( '_geopress_google_apikey',  sanitize_text_field( wp_unslash( $_POST['google_apikey'] ?? '' ) ) );
-			update_option( '_geopress_yahoo_appid',    sanitize_text_field( wp_unslash( $_POST['yahoo_appid'] ?? '' ) ) );
 			echo '<div class="updated"><p><strong>' . esc_html__( 'Map options updated.', 'geopress' ) . '</strong></p></div>';
 		}
 
@@ -545,7 +543,6 @@ class GeoPress_Admin {
 		$default_add_map = (int) get_option( '_geopress_default_add_map', 0 );
 		$rss_format      = get_option( '_geopress_rss_format', 'simple' );
 		$google_apikey   = get_option( '_geopress_google_apikey', '' );
-		$yahoo_appid     = get_option( '_geopress_yahoo_appid', '' );
 		?>
 		<div class="wrap">
 		<h2><?php esc_html_e( 'Customize GeoPress', 'geopress' ); ?></h2>
@@ -559,12 +556,6 @@ class GeoPress_Admin {
 					<th scope="row"><?php esc_html_e( 'GoogleMaps Key', 'geopress' ); ?>:</th>
 					<td>
 						<input name="google_apikey" type="text" id="google_apikey" style="width: 95%" value="<?php echo esc_attr( $google_apikey ); ?>" size="45" />
-					</td>
-				</tr>
-				<tr valign="top">
-					<th scope="row"><?php esc_html_e( 'Yahoo AppID', 'geopress' ); ?>:</th>
-					<td>
-						<input name="yahoo_appid" type="text" id="yahoo_appid" style="width: 95%" value="<?php echo esc_attr( $yahoo_appid ); ?>" size="45" />
 					</td>
 				</tr>
 				<tr valign="top">

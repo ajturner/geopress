@@ -62,7 +62,6 @@ class GeoPress {
 		add_option( '_geopress_default_add_map',   0 );
 		add_option( '_geopress_default_zoom_level','11' );
 		add_option( '_geopress_google_apikey',     '' );
-		add_option( '_geopress_yahoo_appid',       '' );
 
 		$ping_sites = get_option( 'ping_sites', '' );
 		if ( false === strpos( $ping_sites, 'mapufacture' ) ) {
@@ -389,7 +388,7 @@ class GeoPress {
 		// Nonce guard — the nonce is output by GeoPress_Admin::geopress_new_location_form().
 		if (
 			! isset( $_POST['geopress_nonce'] ) ||
-			! wp_verify_nonce( sanitize_key( $_POST['geopress_nonce'] ), 'geopress_save_location' )
+			! wp_verify_nonce( wp_unslash( $_POST['geopress_nonce'] ), 'geopress_save_location' )
 		) {
 			return;
 		}
@@ -699,18 +698,9 @@ class GeoPress {
 	private static function enqueue_map_api_scripts() {
 		$map_format = get_option( '_geopress_map_format', 'openlayers' );
 
-		// OpenLayers is the default / fallback provider.
-		wp_enqueue_script( 'geopress-openlayers' );
-
-		$yahoo_appid = get_option( '_geopress_yahoo_appid', '' );
-		if ( '' !== $yahoo_appid ) {
-			wp_enqueue_script(
-				'geopress-yahoo-maps',
-				'https://api.maps.yahoo.com/ajaxymap?v=3.4&appid=' . rawurlencode( $yahoo_appid ),
-				array(),
-				null,
-				false
-			);
+		// Enqueue the OpenLayers library only when it is the active provider.
+		if ( in_array( $map_format, array( 'openlayers', 'openstreetmap' ), true ) ) {
+			wp_enqueue_script( 'geopress-openlayers' );
 		}
 
 		if ( 'microsoft' === $map_format ) {

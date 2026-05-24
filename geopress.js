@@ -89,7 +89,8 @@ function showLocation(addr, geometry) {
 
 function geocode(element, geometry) {
   if (element == null) element = 'addr';
-  returnObjById('geometry').value = '';
+  // Do not clear the geometry field here — it holds the server-resolved
+  // coordinate and should only be cleared when a new map point is clicked.
   showLocation(element, geometry);
 }
 

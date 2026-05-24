@@ -24,9 +24,9 @@ class SaveGeoTest extends TestCase {
 
         // Stub sanitize functions to return their input unchanged.
         Functions\stubs( array(
-            'sanitize_text_field' => null,
-            'sanitize_key'        => null,
-            'esc_url_raw'         => null,
+            'sanitize_text_field',
+            'sanitize_key',
+            'esc_url_raw',
         ) );
     }
 
