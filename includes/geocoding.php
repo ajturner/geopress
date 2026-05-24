@@ -26,7 +26,7 @@ function geocode( $location, $geocoder = 'nominatim' ) {
 
 	$url = add_query_arg(
 		array(
-			'q'              => rawurlencode( $location ),
+			'q'              => sanitize_text_field( $location ),
 			'format'         => 'json',
 			'limit'          => '1',
 			'addressdetails' => '0',

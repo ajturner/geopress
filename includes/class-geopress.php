@@ -418,11 +418,12 @@ class GeoPress {
 			return;
 		}
 
-		// Resolve to lat/lon.
+		// Resolve to lat/lon. Accept both "[lat,lon]", "lat, lon" (comma) and
+		// "lat lon" (space-separated) — the stored coord format is space-separated.
 		if ( preg_match( '/\[(.+),[ ]?(.+)\]/', $addr, $matches ) ) {
 			$lat = trim( $matches[1] );
 			$lon = trim( $matches[2] );
-		} elseif ( preg_match( '/(.+),[ ]?(.+)/', $geometry, $matches ) ) {
+		} elseif ( preg_match( '/^([-\d.]+)[,\s]+([-\d.]+)$/', trim( $geometry ), $matches ) ) {
 			$lat = trim( $matches[1] );
 			$lon = trim( $matches[2] );
 		} else {
@@ -726,7 +727,7 @@ class GeoPress {
 			$google_apikey = get_option( '_geopress_google_apikey', '' );
 			$google_url    = 'https://maps.googleapis.com/maps/api/js';
 			if ( '' !== $google_apikey ) {
-				$google_url = add_query_arg( 'key', rawurlencode( $google_apikey ), $google_url );
+				$google_url = add_query_arg( 'key', $google_apikey, $google_url );
 			}
 			wp_enqueue_script(
 				'geopress-google-maps',

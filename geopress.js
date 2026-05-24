@@ -34,6 +34,7 @@ function geopress_setmap() {
  * Handles both coordinate setting via click and programmatic placement.
  */
 function addPointToMap(point) {
+  if (typeof geo_map === 'undefined' || !geo_map) return;
   geo_map.removeAllMarkers();
   var marker = new Marker(point);
   geo_map.setCenterAndZoom(point, 10);
@@ -56,15 +57,17 @@ function returnObjById(id) {
  * let GeoPress geocode server-side, then reload the editor.
  */
 function showLocation(addr, geometry) {
+  if (typeof geo_map === 'undefined' || !geo_map) return false;
+
   if (!addr)     addr     = 'addr';
   if (!geometry) geometry = 'geometry';
 
   var address = returnObjById(addr)     ? returnObjById(addr).value     : '';
   var geom    = returnObjById(geometry) ? returnObjById(geometry).value : '';
 
-  // Prefer an already-resolved geometry value (lat, lon).
+  // Accept stored "lat lon" (space) and display "lat, lon" (comma) formats.
   if (geom) {
-    var matches = geom.match(/(.+),[ ]+(.+)/);
+    var matches = geom.match(/^([-\d.]+)[,\s]+([-\d.]+)$/);
     if (matches) {
       setMapPoint(new LatLonPoint(parseFloat(matches[1]), parseFloat(matches[2])));
       return false;
@@ -99,6 +102,7 @@ function findLocation(address) {
  * setMapPoint() centres the editor map on a LatLonPoint and places a marker.
  */
 function setMapPoint(point) {
+  if (typeof geo_map === 'undefined' || !geo_map) return;
   geo_map.removeAllMarkers();
   addPointToMap(point);
 }

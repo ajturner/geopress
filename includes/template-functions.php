@@ -17,6 +17,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function has_location() {
 	global $post;
+	if ( empty( $post ) || empty( $post->ID ) ) {
+		return false;
+	}
 	return (bool) GeoPress::get_geo( $post->ID );
 }
 
@@ -27,6 +30,9 @@ function has_location() {
  */
 function the_coord() {
 	global $post;
+	if ( empty( $post ) || empty( $post->ID ) ) {
+		return '';
+	}
 	$geo = GeoPress::get_geo( $post->ID );
 	return $geo ? (string) $geo->coord : '';
 }
@@ -56,6 +62,9 @@ function the_geo_mf() {
  */
 function the_address() {
 	global $post;
+	if ( empty( $post ) || empty( $post->ID ) ) {
+		return '';
+	}
 	$geo = GeoPress::get_geo( $post->ID );
 	return $geo ? (string) $geo->loc : '';
 }
@@ -67,6 +76,9 @@ function the_address() {
  */
 function the_location_name() {
 	global $post;
+	if ( empty( $post ) || empty( $post->ID ) ) {
+		return '';
+	}
 	$geo = GeoPress::get_geo( $post->ID );
 	return $geo ? (string) $geo->name : '';
 }
@@ -98,7 +110,7 @@ function the_loc_mf() {
  */
 function geopress_location_name() {
 	if ( isset( $_GET['loc'] ) && '' !== $_GET['loc'] ) {
-		$loc_id   = (int) $_GET['loc'];
+		$loc_id   = absint( wp_unslash( $_GET['loc'] ) );
 		$location = GeoPress::get_location( $loc_id );
 		return $location ? esc_html( $location->name ) : '';
 	}

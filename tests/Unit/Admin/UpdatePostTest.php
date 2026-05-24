@@ -24,10 +24,12 @@ class UpdatePostTest extends TestCase {
         parent::tearDown();
     }
 
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_bails_during_autosave(): void {
-        if ( ! defined( 'DOING_AUTOSAVE' ) ) {
-            define( 'DOING_AUTOSAVE', true );
-        }
+        define( 'DOING_AUTOSAVE', true );
 
         $this->wpdb->shouldNotReceive( 'prepare' );
 
