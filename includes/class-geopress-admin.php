@@ -1,0 +1,661 @@
+<?php
+/**
+ * GeoPress admin pages and post editor metabox.
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+class GeoPress_Admin {
+
+	// ── Admin menu ────────────────────────────────────────────────────────────
+
+	public static function admin_menu() {
+		$slug = 'geopress/geopress.php';
+
+		add_menu_page(
+			__( 'Customize GeoPress', 'geopress' ),
+			__( 'GeoPress', 'geopress' ),
+			'manage_options',
+			$slug,
+			array( __CLASS__, 'geopress_options_page' )
+		);
+		add_submenu_page(
+			$slug,
+			__( 'Locations', 'geopress' ),
+			__( 'Locations', 'geopress' ),
+			'manage_options',
+			'geopress_locations',
+			array( __CLASS__, 'geopress_locations_page' )
+		);
+		add_submenu_page(
+			$slug,
+			__( 'Maps', 'geopress' ),
+			__( 'Maps', 'geopress' ),
+			'manage_options',
+			'geopress_maps',
+			array( __CLASS__, 'geopress_maps_page' )
+		);
+		add_submenu_page(
+			$slug,
+			__( 'Documentation', 'geopress' ),
+			__( 'Documentation', 'geopress' ),
+			'manage_options',
+			'geopress_documentation',
+			array( __CLASS__, 'geopress_documentation_page' )
+		);
+	}
+
+	// ── Post editor metabox ───────────────────────────────────────────────────
+
+	/**
+	 * Registers the Location metabox.
+	 *
+	 * Uses context 'side' so Gutenberg renders it in the Document settings
+	 * sidebar alongside Categories and Tags. In the Classic Editor it appears
+	 * in the right column.
+	 *
+	 * Hooked to: add_meta_boxes
+	 */
+	public static function register_meta_boxes() {
+		add_meta_box(
+			'geopress-location',
+			__( 'Location', 'geopress' ),
+			array( __CLASS__, 'location_edit_form' ),
+			array( 'post', 'page' ),
+			'side',
+			'default'
+		);
+	}
+
+	public static function location_edit_form( $post = null ) {
+		$post_id = $post ? $post->ID : 0;
+		$geo     = GeoPress::get_geo( (int) $post_id );
+		self::geopress_new_location_form( $geo );
+	}
+
+	/**
+	 * Renders the location form.
+	 *
+	 * Gutenberg renders side metaboxes in a narrow iframe (~280 px), so this
+	 * form uses simple stacked inputs instead of the full map widget. The map
+	 * widget (geopress_map_select) is only added for the Classic Editor, where
+	 * the context is wide enough to display it.
+	 */
+	public static function geopress_new_location_form( $geo ) {
+		$loc      = $geo ? esc_attr( $geo->loc )   : '';
+		$geometry = $geo ? esc_attr( $geo->coord )  : '';
+		$locname  = $geo ? esc_attr( $geo->name )   : '';
+
+		// Detect whether we are inside the block editor (Gutenberg) by checking
+		// the global screen object. Side metaboxes in Gutenberg are rendered in
+		// an iframe; Classic Editor pages have a non-block-editor screen.
+		$is_block_editor = function_exists( 'get_current_screen' )
+			&& ( get_current_screen() && method_exists( get_current_screen(), 'is_block_editor' ) )
+			&& get_current_screen()->is_block_editor();
+		?>
+		<div id="locationdiv">
+			<?php wp_nonce_field( 'geopress_save_location', 'geopress_nonce' ); ?>
+
+			<p>
+				<label for="locname"><strong><?php esc_html_e( 'Label', 'geopress' ); ?></strong></label><br />
+				<input type="text" id="locname" name="locname" value="<?php echo $locname; ?>"
+					style="width:100%" placeholder="<?php esc_attr_e( 'e.g. Home, Conference Centre', 'geopress' ); ?>" />
+			</p>
+
+			<p>
+				<label for="addr"><strong><?php esc_html_e( 'Address or Coordinates', 'geopress' ); ?></strong></label><br />
+				<input type="text" id="addr" name="addr" value="<?php echo $loc; ?>"
+					style="width:100%" placeholder="<?php esc_attr_e( 'Address or [lat, lon]', 'geopress' ); ?>"
+					<?php if ( ! $is_block_editor ) : ?>onkeypress="return checkEnter(event);"<?php endif; ?> />
+				<span style="font-size:11px;color:#666;">
+					<?php esc_html_e( 'Tip: enter coordinates as [lat, lon] to skip geocoding, e.g. [51.5, -0.1]', 'geopress' ); ?>
+				</span>
+			</p>
+
+			<?php if ( $geo && $geometry ) : ?>
+			<p style="font-size:11px;color:#666;">
+				&#x1F4CD; <?php echo esc_html( $geometry ); ?>
+			</p>
+			<?php endif; ?>
+
+			<input type="hidden" id="geometry" name="geometry" value="<?php echo $geometry; ?>" />
+
+			<?php
+			// Saved-location picker + map widget — only rendered in Classic Editor
+			// where there is enough width and the map JS is available on the page.
+			if ( ! $is_block_editor ) :
+				$saved_locations = GeoPress::select_saved_geo_array();
+				if ( $saved_locations ) :
+				?>
+				<p>
+					<label for="geopress_select"><?php esc_html_e( 'Saved Locations', 'geopress' ); ?></label><br />
+					<select id="geopress_select" style="width:100%"
+						onchange="geopress_loadsaved(this);showLocation('addr','geometry');">
+						<option value=""><?php esc_html_e( '--choose one--', 'geopress' ); ?></option>
+						<?php foreach ( $saved_locations as $row ) : ?>
+							<option value="<?php echo esc_attr( $row->loc ); ?>"><?php echo esc_html( $row->name ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</p>
+				<?php
+				endif;
+			endif;
+			?>
+
+		</div>
+		<?php
+		if ( ! $is_block_editor && $geo ) :
+		?>
+		<script type="text/javascript">
+		geopress_addEvent(window, 'load', function() { showLocation(); });
+		</script>
+		<?php
+		endif;
+	}
+
+	// ── Locations page ────────────────────────────────────────────────────────
+
+	public static function geopress_locations_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'geopress' ) );
+		}
+
+		$notices = array();
+
+		if ( isset( $_POST['geopress_nonce'] ) && check_admin_referer( 'geopress_locations_nonce', 'geopress_nonce' ) ) {
+
+			// ── Add a new location ──────────────────────────────────────────
+			if ( isset( $_POST['add_location'] ) ) {
+				$name = sanitize_text_field( wp_unslash( $_POST['new_locname'] ?? '' ) );
+				$addr = sanitize_text_field( wp_unslash( $_POST['new_locaddr'] ?? '' ) );
+
+				if ( '' === $addr ) {
+					$notices[] = array( 'error', __( 'Address is required to add a location.', 'geopress' ) );
+				} else {
+					list( $lat, $lon ) = geocode( $addr );
+					list( $warn, $mapurl ) = yahoo_mapurl( $addr );
+
+					if ( '' === $lat || '' === $lon ) {
+						$notices[] = array( 'error', sprintf(
+							/* translators: %s: address that could not be geocoded */
+							__( 'Could not geocode &#8220;%s&#8221;. Check the address or use [lat, lon] format.', 'geopress' ),
+							esc_html( $addr )
+						) );
+					} else {
+						GeoPress::save_geo( -1, $name, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, 1 );
+						$notices[] = array( 'updated', sprintf(
+							/* translators: 1: location name, 2: coordinates */
+							__( 'Location &#8220;%1$s&#8221; added at %2$s.', 'geopress' ),
+							esc_html( $name ?: $addr ),
+							esc_html( "{$lat}, {$lon}" )
+						) );
+					}
+				}
+
+			// ── Delete a location ───────────────────────────────────────────
+			} elseif ( isset( $_POST['delete_location'] ) ) {
+				$del_id = (int) $_POST['delete_location'];
+				if ( $del_id ) {
+					GeoPress::delete_location( $del_id );
+					$notices[] = array( 'updated', __( 'Location deleted.', 'geopress' ) );
+				}
+
+			// ── Save edits to existing locations ────────────────────────────
+			} elseif ( isset( $_POST['save_locations'] ) ) {
+				$locnames    = isset( $_POST['locname'] )    ? (array) wp_unslash( $_POST['locname'] )    : array();
+				$locaddrs    = isset( $_POST['locaddr'] )    ? (array) wp_unslash( $_POST['locaddr'] )    : array();
+				$locids      = isset( $_POST['locid'] )      ? (array) wp_unslash( $_POST['locid'] )      : array();
+				$locvisibles = isset( $_POST['locvisible'] ) ? (array) wp_unslash( $_POST['locvisible'] ) : array();
+
+				foreach ( $locnames as $i => $raw_name ) {
+					$name = sanitize_text_field( $raw_name );
+					$addr = sanitize_text_field( $locaddrs[ $i ] ?? '' );
+					$lid  = (int) ( $locids[ $i ] ?? 0 );
+					$vis  = isset( $locvisibles[ $i ] ) ? 1 : 0;
+
+					// Re-geocode if address changed (new addr won't match stored coord).
+					$existing = GeoPress::get_location( $lid );
+					if ( $existing && $existing->loc !== $addr ) {
+						list( $lat, $lon ) = geocode( $addr );
+					} elseif ( $existing && '' !== trim( $existing->coord ) ) {
+						$parts = preg_split( '/\s+/', trim( $existing->coord ) );
+						$lat   = $parts[0] ?? '';
+						$lon   = $parts[1] ?? '';
+					} else {
+						list( $lat, $lon ) = geocode( $addr );
+					}
+
+					list( $warn, $mapurl ) = yahoo_mapurl( $addr );
+					GeoPress::save_geo( $lid, $name, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, $vis );
+				}
+
+				$notices[] = array( 'updated', __( 'Locations saved.', 'geopress' ) );
+			}
+		}
+
+		// Reload locations after any changes.
+		global $wpdb;
+		$table     = $wpdb->prefix . 'geopress';
+		$locations = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY geopress_id ASC" );
+		?>
+		<div class="wrap">
+		<h1><?php esc_html_e( 'Locations', 'geopress' ); ?></h1>
+
+		<?php foreach ( $notices as $notice ) : ?>
+		<div class="notice notice-<?php echo esc_attr( $notice[0] ); ?> is-dismissible">
+			<p><?php echo wp_kses_post( $notice[1] ); ?></p>
+		</div>
+		<?php endforeach; ?>
+
+		<?php /* ── Add New Location ── */ ?>
+		<h2><?php esc_html_e( 'Add New Location', 'geopress' ); ?></h2>
+		<form method="post" style="max-width:600px;">
+			<?php wp_nonce_field( 'geopress_locations_nonce', 'geopress_nonce' ); ?>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row">
+						<label for="new_locname"><?php esc_html_e( 'Label', 'geopress' ); ?></label>
+					</th>
+					<td>
+						<input type="text" id="new_locname" name="new_locname" class="regular-text"
+							placeholder="<?php esc_attr_e( 'e.g. Home, Conference Centre', 'geopress' ); ?>" />
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="new_locaddr"><?php esc_html_e( 'Address', 'geopress' ); ?></label>
+					</th>
+					<td>
+						<input type="text" id="new_locaddr" name="new_locaddr" class="regular-text"
+							placeholder="<?php esc_attr_e( 'Address or [lat, lon]', 'geopress' ); ?>" required />
+						<p class="description">
+							<?php esc_html_e( 'Address is geocoded via OpenStreetMap. For exact coordinates use [lat, lon] format, e.g. [51.5, -0.1].', 'geopress' ); ?>
+						</p>
+					</td>
+				</tr>
+			</table>
+			<p class="submit">
+				<input type="submit" name="add_location" class="button button-primary"
+					value="<?php esc_attr_e( 'Add Location', 'geopress' ); ?>" />
+			</p>
+		</form>
+
+		<?php /* ── Existing Locations ── */ ?>
+		<h2><?php esc_html_e( 'Existing Locations', 'geopress' ); ?></h2>
+		<?php if ( empty( $locations ) ) : ?>
+			<p><?php esc_html_e( 'No locations saved yet.', 'geopress' ); ?></p>
+		<?php else : ?>
+		<form method="post">
+			<?php wp_nonce_field( 'geopress_locations_nonce', 'geopress_nonce' ); ?>
+			<table class="wp-list-table widefat fixed striped" style="max-width:900px;">
+				<thead>
+					<tr>
+						<th scope="col" style="width:5%;"><?php esc_html_e( 'Show', 'geopress' ); ?></th>
+						<th scope="col" style="width:20%;"><?php esc_html_e( 'Label', 'geopress' ); ?></th>
+						<th scope="col" style="width:35%;"><?php esc_html_e( 'Address', 'geopress' ); ?></th>
+						<th scope="col" style="width:25%;"><?php esc_html_e( 'Coordinates', 'geopress' ); ?></th>
+						<th scope="col" style="width:15%;"></th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php $i = 0; foreach ( $locations as $loc ) : ?>
+					<tr>
+						<td>
+							<input type="hidden" name="locid[<?php echo $i; ?>]" value="<?php echo esc_attr( $loc->geopress_id ); ?>" />
+							<input type="checkbox" name="locvisible[<?php echo $i; ?>]" value="1"
+								<?php checked( (bool) $loc->visible ); ?>
+								title="<?php esc_attr_e( 'Show on maps', 'geopress' ); ?>" />
+						</td>
+						<td>
+							<input type="text" name="locname[<?php echo $i; ?>]"
+								value="<?php echo esc_attr( $loc->name ); ?>"
+								style="width:100%" />
+						</td>
+						<td>
+							<input type="text" name="locaddr[<?php echo $i; ?>]"
+								value="<?php echo esc_attr( $loc->loc ); ?>"
+								style="width:100%" />
+						</td>
+						<td style="font-family:monospace; font-size:12px; color:#555;">
+							<?php echo esc_html( $loc->coord ); ?>
+						</td>
+						<td>
+							<button type="submit" name="delete_location" value="<?php echo esc_attr( $loc->geopress_id ); ?>"
+								class="button button-small"
+								onclick="return confirm('<?php echo esc_js( __( 'Delete this location?', 'geopress' ) ); ?>');">
+								<?php esc_html_e( 'Delete', 'geopress' ); ?>
+							</button>
+						</td>
+					</tr>
+				<?php $i++; endforeach; ?>
+				</tbody>
+			</table>
+			<p class="submit">
+				<input type="submit" name="save_locations" class="button button-primary"
+					value="<?php esc_attr_e( 'Save Changes', 'geopress' ); ?>" />
+			</p>
+		</form>
+
+		<?php GeoPress_Maps::admin_locations_map( $locations ); ?>
+
+		<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	// ── Maps page ─────────────────────────────────────────────────────────────
+
+	public static function geopress_maps_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'geopress' ) );
+		}
+
+		if ( isset( $_POST['Options'] ) && check_admin_referer( 'geopress_maps_nonce', 'geopress_nonce' ) ) {
+			update_option( '_geopress_map_format',         sanitize_key( wp_unslash( $_POST['map_format'] ?? 'openlayers' ) ) );
+			update_option( '_geopress_mapwidth',           (int) ( $_POST['default_mapwidth'] ?? 400 ) );
+			update_option( '_geopress_mapheight',          (int) ( $_POST['default_mapheight'] ?? 200 ) );
+			update_option( '_geopress_marker',             esc_url_raw( wp_unslash( $_POST['default_marker'] ?? '' ) ) );
+			update_option( '_geopress_map_type',           sanitize_key( wp_unslash( $_POST['map_view_type'] ?? 'hybrid' ) ) );
+			update_option( '_geopress_controls_pan',       isset( $_POST['map_controls_pan'] ) );
+			update_option( '_geopress_controls_map_type',  isset( $_POST['map_controls_map_type'] ) );
+			update_option( '_geopress_controls_zoom',      sanitize_key( wp_unslash( $_POST['map_controls_zoom'] ?? 'small' ) ) );
+			update_option( '_geopress_controls_overview',  isset( $_POST['map_controls_overview'] ) );
+			update_option( '_geopress_controls_scale',     isset( $_POST['map_controls_scale'] ) );
+			update_option( '_geopress_default_zoom_level', (int) ( $_POST['default_zoom_level'] ?? 11 ) );
+
+			echo '<div class="updated"><p><strong>' . esc_html__( 'Map layout updated.', 'geopress' ) . '</strong></p></div>';
+		}
+
+		$map_format         = get_option( '_geopress_map_format', 'openlayers' );
+		$default_mapwidth   = (int) get_option( '_geopress_mapwidth', 400 );
+		$default_mapheight  = (int) get_option( '_geopress_mapheight', 200 );
+		$default_marker     = get_option( '_geopress_marker', GEOPRESS_URL . 'images/marker.svg' );
+		$default_zoom_level = (int) get_option( '_geopress_default_zoom_level', 11 );
+		$map_view_type      = get_option( '_geopress_map_type', 'hybrid' );
+		$map_controls_zoom  = get_option( '_geopress_controls_zoom', 'small' );
+		$pan_checked        = get_option( '_geopress_controls_pan' )      ? 'checked="checked"' : '';
+		$overview_checked   = get_option( '_geopress_controls_overview' ) ? 'checked="checked"' : '';
+		$scale_checked      = get_option( '_geopress_controls_scale' )    ? 'checked="checked"' : '';
+		$maptype_checked    = get_option( '_geopress_controls_map_type' ) ? 'checked="checked"' : '';
+		?>
+		<div class="wrap">
+		<h2><?php esc_html_e( 'Configure Map Layout', 'geopress' ); ?></h2>
+		<p><?php esc_html_e( 'This page configures the default map that will appear with posts and when you use INSERT_MAP.', 'geopress' ); ?></p>
+		<h3><?php esc_html_e( 'Default Map', 'geopress' ); ?></h3>
+		<form method="post">
+		<?php wp_nonce_field( 'geopress_maps_nonce', 'geopress_nonce' ); ?>
+		<div style="float:left;"><?php echo geopress_map( '', '', 1, false ); ?></div>
+		<fieldset class="options">
+		<table width="100%" cellspacing="2" cellpadding="5" class="editform">
+			<tr valign="top">
+				<th width="33%" scope="row"><?php esc_html_e( 'Map Size', 'geopress' ); ?>:</th>
+				<td>
+					<dl>
+						<dt><label for="default_mapwidth"><?php esc_html_e( 'Map Width', 'geopress' ); ?>:</label></dt>
+						<dd><input type="number" name="default_mapwidth" id="default_mapwidth" value="<?php echo esc_attr( $default_mapwidth ); ?>" style="width:5em" /> px</dd>
+						<dt><label for="default_mapheight"><?php esc_html_e( 'Map Height', 'geopress' ); ?>:</label></dt>
+						<dd><input type="number" name="default_mapheight" id="default_mapheight" value="<?php echo esc_attr( $default_mapheight ); ?>" style="width:5em" /> px</dd>
+						<dt><label for="default_zoom_level"><?php esc_html_e( 'Default Zoom', 'geopress' ); ?>:</label></dt>
+						<dd>
+							<select name="default_zoom_level" id="default_zoom_level" onchange="geopress_change_zoom();">
+								<?php
+								$zoom_levels = array(
+									18 => __( 'Zoomed In', 'geopress' ),
+									17 => __( 'Single Block', 'geopress' ),
+									16 => __( 'Neighborhood', 'geopress' ),
+									15 => '15', 14 => __( 'Several Blocks', 'geopress' ),
+									13 => '13', 12 => '12',
+									11 => __( 'City', 'geopress' ),
+									10 => '10', 9 => '9', 8 => '8',
+									7  => __( 'Region', 'geopress' ),
+									6  => '6', 5 => '5', 4 => '4',
+									3  => __( 'Continent', 'geopress' ),
+									2  => '2',
+									1  => __( 'Zoomed Out', 'geopress' ),
+								);
+								foreach ( $zoom_levels as $value => $label ) {
+									printf(
+										'<option value="%d"%s>%s</option>',
+										$value,
+										selected( $default_zoom_level, $value, false ),
+										esc_html( $label )
+									);
+								}
+								?>
+							</select>
+						</dd>
+					</dl>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php esc_html_e( 'Map Marker', 'geopress' ); ?>:</th>
+				<td>
+					<input type="text" name="default_marker" id="default_marker" value="<?php echo esc_attr( $default_marker ); ?>" />
+					&nbsp;
+					<label for="default_marker">
+						<img src="<?php echo esc_url( $default_marker ); ?>" alt="<?php esc_attr_e( 'Default GeoPress marker', 'geopress' ); ?>" style="padding:2px; background-color: white; border: 1px solid #888;" />
+					</label>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php esc_html_e( 'Map Format', 'geopress' ); ?>:</th>
+				<td>
+					<select name="map_format" id="map_format" onchange="geopress_change_map_format()">
+						<?php
+						$formats = array(
+							'google'        => 'Google',
+							'microsoft'     => 'Microsoft',
+							'openstreetmap' => 'OpenStreetMap',
+							'openlayers'    => 'OpenLayers',
+						);
+						foreach ( $formats as $val => $label ) {
+							printf(
+								'<option value="%s"%s>%s</option>',
+								esc_attr( $val ),
+								selected( $map_format, $val, false ),
+								esc_html( $label )
+							);
+						}
+						?>
+					</select>
+					<em><?php esc_html_e( 'Changing to Microsoft Maps requires saving your options', 'geopress' ); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php esc_html_e( 'Map Type', 'geopress' ); ?>:</th>
+				<td>
+					<select name="map_view_type" id="map_view_type" onchange="geopress_change_view()">
+						<?php
+						$types = array(
+							'road'      => __( 'Road', 'geopress' ),
+							'satellite' => __( 'Satellite', 'geopress' ),
+							'hybrid'    => __( 'Hybrid', 'geopress' ),
+						);
+						foreach ( $types as $val => $label ) {
+							printf( '<option value="%s"%s>%s</option>', esc_attr( $val ), selected( $map_view_type, $val, false ), esc_html( $label ) );
+						}
+						?>
+					</select>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php esc_html_e( 'Controls', 'geopress' ); ?>:</th>
+				<td>
+					<select name="map_controls_zoom" id="map_controls_zoom" onchange="geopress_change_controls(this)">
+						<?php
+						$zoom_opts = array(
+							'false' => __( 'None', 'geopress' ),
+							'small' => __( 'Small', 'geopress' ),
+							'large' => __( 'Large', 'geopress' ),
+						);
+						foreach ( $zoom_opts as $val => $label ) {
+							printf( '<option value="%s"%s>%s</option>', esc_attr( $val ), selected( $map_controls_zoom, $val, false ), esc_html( $label ) );
+						}
+						?>
+					</select>
+					<label for="map_controls_zoom"><?php esc_html_e( 'Zoom control size', 'geopress' ); ?></label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"></th>
+				<td><input name="map_controls_pan" type="checkbox" id="map_controls_pan" onchange="geopress_change_controls(this)" value="true" <?php echo $pan_checked; ?> /> <label for="map_controls_pan"><?php esc_html_e( 'Pan control', 'geopress' ); ?></label> <em>(Yahoo)</em></td>
+			</tr>
+			<tr>
+				<th scope="row"></th>
+				<td><input name="map_controls_map_type" type="checkbox" id="map_controls_map_type" onchange="geopress_change_controls(this)" value="true" <?php echo $maptype_checked; ?> /> <label for="map_controls_map_type"><?php esc_html_e( 'Map Type', 'geopress' ); ?></label> <em>(Google)</em></td>
+			</tr>
+			<tr>
+				<th scope="row"></th>
+				<td><input name="map_controls_overview" type="checkbox" id="map_controls_overview" onchange="geopress_change_controls(this)" value="true" <?php echo $overview_checked; ?> /> <label for="map_controls_overview"><?php esc_html_e( 'Overview', 'geopress' ); ?></label> <em>(Google)</em></td>
+			</tr>
+			<tr>
+				<th scope="row"></th>
+				<td><input name="map_controls_scale" type="checkbox" id="map_controls_scale" onchange="geopress_change_controls(this)" value="true" <?php echo $scale_checked; ?> /> <label for="map_controls_scale"><?php esc_html_e( 'Scale', 'geopress' ); ?></label> <em>(Google)</em></td>
+			</tr>
+		</table>
+		</fieldset>
+		<div class="submit">
+			<input type="submit" name="Options" value="<?php echo esc_attr__( 'Save Map Layout', 'geopress' ); ?> &raquo;" />
+		</div>
+		</form>
+		</div>
+		<?php
+	}
+
+	// ── Options page ──────────────────────────────────────────────────────────
+
+	public static function geopress_options_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'geopress' ) );
+		}
+
+		if ( isset( $_POST['Options'] ) && check_admin_referer( 'geopress_options_nonce', 'geopress_nonce' ) ) {
+			update_option( '_geopress_rss_enable',     isset( $_POST['georss_enable'] ) ? 'true' : 'false' );
+			update_option( '_geopress_rss_format',     sanitize_key( wp_unslash( $_POST['georss_format'] ?? 'simple' ) ) );
+			update_option( '_geopress_default_add_map',(int) ( $_POST['default_add_map'] ?? 0 ) );
+			update_option( '_geopress_google_apikey',  sanitize_text_field( wp_unslash( $_POST['google_apikey'] ?? '' ) ) );
+			echo '<div class="updated"><p><strong>' . esc_html__( 'Map options updated.', 'geopress' ) . '</strong></p></div>';
+		}
+
+		$rss_enable      = get_option( '_geopress_rss_enable', 'true' ) === 'true' ? 'checked="checked"' : '';
+		$default_add_map = (int) get_option( '_geopress_default_add_map', 0 );
+		$rss_format      = get_option( '_geopress_rss_format', 'simple' );
+		$google_apikey   = get_option( '_geopress_google_apikey', '' );
+		?>
+		<div class="wrap">
+		<h2><?php esc_html_e( 'Customize GeoPress', 'geopress' ); ?></h2>
+		<form method="post">
+		<?php wp_nonce_field( 'geopress_options_nonce', 'geopress_nonce' ); ?>
+		<p><?php esc_html_e( 'Welcome to GeoPress. Configure your API keys and default settings below. Then go and start writing geotagged posts!', 'geopress' ); ?></p>
+		<fieldset class="options">
+			<legend><?php esc_html_e( 'Map', 'geopress' ); ?></legend>
+			<table width="100%" cellspacing="2" cellpadding="5" class="editform">
+				<tr valign="top">
+					<th scope="row"><?php esc_html_e( 'GoogleMaps Key', 'geopress' ); ?>:</th>
+					<td>
+						<input name="google_apikey" type="text" id="google_apikey" style="width: 95%" value="<?php echo esc_attr( $google_apikey ); ?>" size="45" />
+					</td>
+				</tr>
+				<tr valign="top">
+					<th scope="row"><?php esc_html_e( 'Add Maps', 'geopress' ); ?>:</th>
+					<td>
+						<select name="default_add_map" id="default_add_map">
+							<?php
+							$add_map_opts = array(
+								0 => __( "I'll do it myself, thanks", 'geopress' ),
+								1 => __( 'Only on single post pages', 'geopress' ),
+								2 => __( 'Give me everything — any post, any page', 'geopress' ),
+							);
+							foreach ( $add_map_opts as $val => $label ) {
+								printf(
+									'<option value="%d"%s>%s</option>',
+									$val,
+									selected( $default_add_map, $val, false ),
+									esc_html( $label )
+								);
+							}
+							?>
+						</select>
+					</td>
+				</tr>
+			</table>
+		</fieldset>
+		<fieldset>
+			<legend><?php esc_html_e( 'GeoRSS Feeds', 'geopress' ); ?></legend>
+			<table width="100%" cellspacing="2" cellpadding="5" class="editform">
+				<tr valign="top">
+					<th scope="row"><?php esc_html_e( 'GeoRSS Feeds', 'geopress' ); ?>:</th>
+					<td>
+						<label for="georss_enable">
+							<input name="georss_enable" type="checkbox" id="georss_enable" value="true" <?php echo $rss_enable; ?> />
+							<?php esc_html_e( 'Enable GeoRSS tags in feeds', 'geopress' ); ?>
+						</label>
+					</td>
+				</tr>
+				<tr valign="top">
+					<th scope="row"><?php esc_html_e( 'Feed Format', 'geopress' ); ?>:</th>
+					<td>
+						<select name="georss_format" id="georss_format">
+							<?php
+							$feed_formats = array(
+								'simple' => 'Simple &lt;georss:point&gt;',
+								'gml'    => 'GML &lt;gml:pos&gt;',
+								'w3c'    => 'W3C &lt;geo:lat&gt;',
+							);
+							foreach ( $feed_formats as $val => $label ) {
+								printf( '<option value="%s"%s>%s</option>', esc_attr( $val ), selected( $rss_format, $val, false ), $label );
+							}
+							?>
+						</select>
+					</td>
+				</tr>
+			</table>
+		</fieldset>
+		<div class="submit">
+			<input type="submit" name="Options" value="<?php echo esc_attr__( 'Update Options', 'geopress' ); ?> &raquo;" />
+		</div>
+		</form>
+		</div>
+		<?php
+	}
+
+	// ── Documentation page ────────────────────────────────────────────────────
+
+	public static function geopress_documentation_page() {
+		echo '<div class="wrap"><h2>' . esc_html__( 'GeoPress Documentation', 'geopress' ) . '</h2>';
+		?>
+		<h3><?php esc_html_e( 'About GeoPress', 'geopress' ); ?></h3>
+		<p><?php esc_html_e( 'GeoPress adds geographic tagging to your posts. Enter a location name or address in the post editor, or use [latitude, longitude] format. GeoPress stores the location and can embed interactive maps, and export GeoRSS/KML/GPX feeds.', 'geopress' ); ?></p>
+		<h4><?php esc_html_e( 'Post Content Tags', 'geopress' ); ?></h4>
+		<ul>
+			<li><code>INSERT_MAP</code> — <?php esc_html_e( 'embeds a map at the post\'s location', 'geopress' ); ?></li>
+			<li><code>INSERT_MAP(height,width)</code> — <?php esc_html_e( 'map with custom size', 'geopress' ); ?></li>
+			<li><code>INSERT_MAP(height,width,url)</code> — <?php esc_html_e( 'map with KML/GeoRSS overlay', 'geopress' ); ?></li>
+			<li><code>INSERT_GEOPRESS_MAP(height,width)</code> — <?php esc_html_e( 'map of all geotagged posts', 'geopress' ); ?></li>
+			<li><code>INSERT_COORDS</code> — <?php esc_html_e( 'geo microformat coordinates', 'geopress' ); ?></li>
+			<li><code>INSERT_ADDRESS</code> — <?php esc_html_e( 'address in adr microformat', 'geopress' ); ?></li>
+			<li><code>INSERT_LOCATION</code> — <?php esc_html_e( 'location name in hCard microformat', 'geopress' ); ?></li>
+			<li><code>GEOPRESS_LOCATION(Address)</code> — <?php esc_html_e( 'set location inline by address', 'geopress' ); ?></li>
+			<li><code>GEOPRESS_LOCATION([lat,lon])</code> — <?php esc_html_e( 'set location inline by coordinates', 'geopress' ); ?></li>
+		</ul>
+		<h4><?php esc_html_e( 'Template Functions', 'geopress' ); ?></h4>
+		<ul>
+			<li><code>has_location()</code></li>
+			<li><code>the_coord()</code></li>
+			<li><code>the_address()</code></li>
+			<li><code>the_location_name()</code></li>
+			<li><code>the_geo_mf()</code></li>
+			<li><code>the_adr_mf()</code></li>
+			<li><code>the_loc_mf()</code></li>
+			<li><code>geopress_map($height, $width, $num_locs)</code></li>
+			<li><code>geopress_post_map($height, $width, $controls)</code></li>
+			<li><code>geopress_page_map($height, $width, $controls)</code></li>
+			<li><code>geopress_locations_list()</code></li>
+			<li><code>geopress_kml_link()</code></li>
+		</ul>
+		<?php
+		echo '</div>';
+	}
+}

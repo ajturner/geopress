@@ -1,44 +1,65 @@
 <?php
+/**
+ * GeoPress KML NetworkLink wrapper (for Google Earth auto-refresh).
+ *
+ * Copyright 2007  Barry Hunter - http://www.nearby.org.uk/blog/
+ * Licensed under GPL-2.0+
+ */
 
-/*  Copyright 2007  Barry Hunter - http://www.nearby.org.uk/blog/
+if ( empty( $wp ) ) {
+	$wp_load_paths = array(
+		dirname( __FILE__, 3 ) . '/wp-load.php',
+		dirname( __FILE__, 4 ) . '/wp-load.php',
+	);
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	$wp_loaded = false;
+	foreach ( $wp_load_paths as $wp_load_path ) {
+		if ( file_exists( $wp_load_path ) ) {
+			require_once $wp_load_path;
+			$wp_loaded = true;
+			break;
+		}
+	}
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-*/
-if (empty($wp)) {
-    require_once('../../../wp-config.php');
-    //wp('feed=rss2');
+	if ( ! $wp_loaded ) {
+		header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
+		exit;
+	}
 }
 
-header('Content-type: application/vnd.google-earth.kml+xml; charset=' . get_settings('blog_charset'), true);
-$more = 1;
+$blog_charset = get_option( 'blog_charset', 'UTF-8' );
+header( 'Content-type: application/vnd.google-earth.kml+xml; charset=' . $blog_charset, true );
 
+// wp-kml.php lives in the plugin root; build its URL from the plugin directory.
+$kml_url = plugin_dir_url( __FILE__ ) . 'wp-kml.php';
+
+if ( ! empty( $_SERVER['QUERY_STRING'] ) ) {
+	$raw_qs = wp_parse_args( wp_unslash( $_SERVER['QUERY_STRING'] ) );
+
+	$sanitized = array();
+	foreach ( $raw_qs as $key => $value ) {
+		$sanitized[ sanitize_key( $key ) ] = is_array( $value )
+			? array_map( 'sanitize_text_field', $value )
+			: sanitize_text_field( $value );
+	}
+
+	$kml_url = add_query_arg( $sanitized, $kml_url );
+}
+
+echo '<?xml version="1.0" encoding="' . esc_attr( $blog_charset ) . '"?>' . "\n";
 ?>
-<?php echo '<?xml version="1.0" encoding="'.get_settings('blog_charset').'"?'.'>'; ?>
-<!-- generator="wordpress/<?php bloginfo_rss('version') ?>/KMLpress" -->
+<!-- generator="wordpress/<?php bloginfo_rss( 'version' ); ?>/KMLpress" -->
 <kml xmlns="http://earth.google.com/kml/2.0">
 <NetworkLink>
-    <name><?php bloginfo_rss('name'); ?></name>
-    <Snippet><![CDATA[<?php bloginfo_rss('url') ?>]]></Snippet>
-    <description><?php bloginfo_rss("description") ?></description>
-    <open>0</open>
-    <Url>
-        <href><?php bloginfo_rss('url'); echo "/wp-kml.php".(!empty($_SERVER['QUERY_STRING'])?"?{$_SERVER['QUERY_STRING']}":''); ?></href>
-        <refreshMode>onInterval</refreshMode>
-        <refreshInterval>3600</refreshInterval>
-    </Url>
-    <visibility>1</visibility>
+	<name><?php bloginfo_rss( 'name' ); ?></name>
+	<Snippet><![CDATA[<?php bloginfo_rss( 'url' ); ?>]]></Snippet>
+	<description><?php bloginfo_rss( 'description' ); ?></description>
+	<open>0</open>
+	<Url>
+		<href><?php echo esc_url( $kml_url ); ?></href>
+		<refreshMode>onInterval</refreshMode>
+		<refreshInterval>3600</refreshInterval>
+	</Url>
+	<visibility>1</visibility>
 </NetworkLink>
 </kml>
