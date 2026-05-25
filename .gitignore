@@ -1,0 +1,11 @@
+# Dependencies (installed via `composer install`)
+/vendor/
+
+# PHPUnit
+/.phpunit.result.cache
+/coverage/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log

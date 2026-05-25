@@ -1,5 +1,17 @@
 GeoPress Changelog
 ====================
+v3.0
+[NEW] Modernized for WordPress 6.x and PHP 8.0+
+[NEW] Full Block (Gutenberg) editor support: Location box in the document sidebar plus [geopress_map], [geopress_post_map], and [geopress_page_map] shortcodes
+[NEW] PHPUnit test suite (Brain Monkey) and Composer-based dev tooling
+[NEW] Location management (add/delete/map) on the admin Locations page
+[NEW] Default marker is now an SVG (images/marker.svg)
+[CHANGED] Refactored the single-file plugin into a thin bootstrap plus modular includes/ classes (core, admin, maps, feeds, geocoding, template functions)
+[CHANGED] Geocoding now uses OpenStreetMap Nominatim via wp_remote_get() - no API key required
+[CHANGED] Google Maps updated from the discontinued v2 API to v3
+[FIXED] Hardened security throughout: prepared SQL statements, input sanitization, output escaping, and nonce-protected admin forms and the post metabox
+[REMOVED] Yahoo Maps provider (its mapping/geocoding APIs are discontinued); OpenLayers/OpenStreetMap is now the default
+
 v2.5
 [NEW] Tested with WordPress 2.7
 [NEW] Added OpenLayers support for OpenStreetMap and other layers
