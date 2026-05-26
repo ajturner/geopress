@@ -247,3 +247,45 @@ Development for AI-assisted changes happens on: `claude/add-claude-documentation
 | `wp-kml-link.php` | `application/vnd.google-earth.kml+xml` | KML NetworkLink |
 
 These files bootstrap WordPress (require `wp-load.php`) and output XML directly.
+
+---
+
+## ArcGIS Provider (added in v3.1)
+
+`arcgis` is a first-class map format alongside the Mapstraction providers. Unlike the others it bypasses Mapstraction entirely and uses the **ArcGIS Maps SDK for JavaScript 5.0** web components.
+
+### Loading model
+
+`includes/class-geopress.php::register_scripts()` registers a single SDK module script — `https://js.arcgis.com/5.0/` — served as `type="module"` via a `script_loader_tag` filter. That URL is a module bundle that registers all the web components (`<arcgis-map>`, `<arcgis-scene>`, `<arcgis-feature-layer>`, …) and exposes a global `$arcgis.import()` loader. The plugin's own `arcgis-map.js` (also a module) calls `$arcgis.import("@arcgis/core/Graphic.js")` at runtime — there are no deep per-module CDN imports.
+
+`enqueue_map_api_scripts()` short-circuits when the configured provider is `arcgis`: it enqueues only the SDK + `arcgis-map.js` (+ a tiny `wp_add_inline_script` block with the user's API key and portal URL as `window.geopressArcGISConfig`), and does **not** enqueue Mapstraction / `geopress.js`. The admin location-picker still uses Mapstraction/OpenLayers regardless of provider.
+
+### Rendering
+
+`includes/class-geopress-maps.php` branches on `arcgis` in `geopress_map()` and `geopress_post_map()` to emit a `<arcgis-map>` element with `data-lat`/`data-lon` (single-point) or `data-locations` JSON (multi-point) attributes. `arcgis-map.js` attaches an `arcgisViewReadyChange` listener and adds a `Graphic` for each point. Standalone embeds — `geopress_arcgis_webmap_embed()` / `geopress_arcgis_webscene_embed()` — emit `<arcgis-map item-id="…">` and `<arcgis-scene item-id="…">` respectively.
+
+### Options (wp_options)
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `_geopress_arcgis_portal_url` | `https://www.arcgis.com` | ArcGIS Online or Enterprise portal |
+| `_geopress_arcgis_api_key` | `""` | Optional Location Platform API key; only needed for Esri basemaps or private content |
+| `_geopress_arcgis_basemap` | `osm` | Default basemap. `osm` works with no key; `arcgis/…` styles require a key |
+| `_geopress_arcgis_webmap_item_id` | `""` | Portal item ID for a web map |
+| `_geopress_arcgis_webscene_item_id` | `""` | Portal item ID for a 3D web scene |
+| `_geopress_arcgis_feature_layer_url` | `""` | Feature layer service URL |
+| `_geopress_arcgis_feature_layer_item_id` | `""` | Feature layer portal item ID |
+
+### Content tags
+
+| Tag | Output |
+|-----|--------|
+| `INSERT_ARCGIS_WEBMAP(item_id[,h,w])` | Standalone `<arcgis-map item-id="…">` |
+| `INSERT_ARCGIS_WEBSCENE(item_id[,h,w])` | Standalone `<arcgis-scene item-id="…">` (3D) |
+
+Both are parsed in `GeoPress::embed_map_inpost()` next to the existing `INSERT_*` tags.
+
+### Files
+
+- `arcgis-map.js` — ES module: `$arcgis.import()` readiness guard + `arcgisViewReadyChange` graphic placement.
+- `tests/Unit/Maps/ArcGISTest.php` — unit tests for the provider helpers and enqueue-time config injection.

@@ -2,14 +2,14 @@
 
 > Geotag posts and pages, embed interactive maps, output geo microformats, and publish GeoRSS, KML, and GPX feeds.
 
-![Version](https://img.shields.io/badge/version-3.0-blue)
+![Version](https://img.shields.io/badge/version-3.1-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4)
 ![License](https://img.shields.io/badge/license-GPL--2.0%2B-green)
 
 GeoPress is a WordPress plugin that adds geographic tagging to your posts and pages. Give a post a location — by place name, street address, or `[latitude, longitude]` — and GeoPress geocodes it, stores it, and lets you embed maps and publish geodata feeds.
 
-- 🗺️ **Interactive maps** via the [Mapstraction](https://github.com/mapstraction/mxn) library (OpenLayers, OpenStreetMap, Google, Microsoft)
+- 🗺️ **Interactive maps** via the [Mapstraction](https://github.com/mapstraction/mxn) library (OpenLayers, OpenStreetMap, Google, Microsoft) or the [ArcGIS Maps SDK for JavaScript 5.0](https://developers.arcgis.com/javascript/latest/) (web components — `<arcgis-map>`, `<arcgis-scene>`, web maps and 3D scenes by portal item ID, feature-layer overlays)
 - 📡 **GeoRSS** in your Atom / RSS 2.0 / RDF feeds (Simple, W3C, or GML)
 - 🌍 **KML and GPX** feeds for Google Earth and GPS tools
 - 🏷️ **Microformats** (geo, adr, hCard) for the semantic web
@@ -58,6 +58,8 @@ Project home: <https://georss.org/geopress/>
 | `INSERT_LOCATION` | Location name as an hCard microformat |
 | `GEOPRESS_LOCATION(Address)` | Set the post's location inline by address |
 | `GEOPRESS_LOCATION([lat,lon])` | Set the post's location inline by coordinates |
+| `INSERT_ARCGIS_WEBMAP(item_id,h,w)` | Embed an ArcGIS Online/Enterprise web map by portal item ID (height/width optional) |
+| `INSERT_ARCGIS_WEBSCENE(item_id,h,w)` | Embed an ArcGIS Online/Enterprise 3D web scene by portal item ID |
 
 Machine tags in WordPress post tags also work: `geo:lat=60.15`, `geo:lon=24.94`.
 
@@ -135,7 +137,11 @@ The test suite uses [Brain Monkey](https://github.com/Brain-WP/BrainMonkey) to s
 
 ## Changelog
 
-See [CHANGES.TXT](CHANGES.TXT) for the full history. The latest release, **3.0**, modernizes the plugin for WordPress 6.x / PHP 8.0+, refactors the single-file plugin into modular classes, adds Block editor support and a test suite, switches geocoding to Nominatim, and removes the discontinued Yahoo Maps provider.
+See [CHANGES.TXT](CHANGES.TXT) for the full history.
+
+**3.1** adds the [ArcGIS Maps SDK for JavaScript 5.0](https://developers.arcgis.com/javascript/latest/) as a new map provider — web maps, 3D scenes, feature layers, and the new `INSERT_ARCGIS_WEBMAP` / `INSERT_ARCGIS_WEBSCENE` content tags. Uses the single 5.0 CDN module entry with `$arcgis.import()` runtime loading; defaults to OpenStreetMap so no API key is required out of the box. Also unbreaks the PHPUnit suite (Patchwork bootstrap order) and fixes a latent `get_location()` negative-ID bug.
+
+**3.0** modernized the plugin for WordPress 6.x / PHP 8.0+, refactored the single-file plugin into modular classes, added Block editor support and a test suite, switched geocoding to Nominatim, and removed the discontinued Yahoo Maps provider.
 
 ## Credits
 

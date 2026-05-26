@@ -28,12 +28,12 @@ require_once dirname( __DIR__ ) . '/vendor/autoload.php';
 if ( ! defined( 'ABSPATH' ) ) {
     define( 'ABSPATH', dirname( __DIR__ ) . '/' );
 }
-define( 'GEOPRESS_VERSION',              '3.0' );
+define( 'GEOPRESS_VERSION',              '3.1' );
 define( 'GEOPRESS_DIR',                  dirname( __DIR__ ) . '/' );
 define( 'GEOPRESS_URL',                  'http://example.com/wp-content/plugins/geopress/' );
 define( 'GEOPRESS_BASENAME',             'geopress/geopress.php' );
 define( 'GEOPRESS_FETCH_TIMEOUT',        5 );
-define( 'GEOPRESS_USER_AGENT',           'GeoPress/3.0' );
+define( 'GEOPRESS_USER_AGENT',           'GeoPress/3.1' );
 define( 'GEOPRESS_GOOGLE_GEOCODER',      'https://maps.google.com/maps/geo?q=' );
 define( 'GEOPRESS_GOOGLE_REGEXP',        '<coordinates>(.*),(.*),0</coordinates>' );
 define( 'GEOPRESS_YAHOO_REGEXP',         '<Latitude>(.*)<\/Latitude>.*<Longitude>(.*)<\/Longitude>' );
