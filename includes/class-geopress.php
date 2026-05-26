@@ -460,30 +460,18 @@ class GeoPress {
 	public static function embed_map_inpost( $content ) {
 		$default_add_map = (int) get_option( '_geopress_default_add_map', 0 );
 
-		// INSERT_ARCGIS_WEBMAP — standalone ArcGIS web map by portal item ID.
-		if ( preg_match( '/INSERT_ARCGIS_WEBMAP/', $content ) ) {
+		// INSERT_ARCGIS_MAP — standalone ArcGIS embed by portal item ID. The item
+		// type (web map vs web scene) is resolved against the configured portal
+		// and cached in a transient, so authors only need a single tag.
+		if ( preg_match( '/INSERT_ARCGIS_MAP/', $content ) ) {
 			$content = preg_replace_callback(
-				'/INSERT_ARCGIS_WEBMAP\(([^,)]+),[ ]?(\d+),[ ]?(\d+)\)/',
-				function ( $m ) { return geopress_arcgis_webmap_embed( trim( $m[1] ), (int) $m[2], (int) $m[3] ); },
+				'/INSERT_ARCGIS_MAP\(([^,)]+),[ ]?(\d+),[ ]?(\d+)\)/',
+				function ( $m ) { return geopress_arcgis_map_embed( trim( $m[1] ), (int) $m[2], (int) $m[3] ); },
 				$content
 			);
 			$content = preg_replace_callback(
-				'/INSERT_ARCGIS_WEBMAP\(([^)]+)\)/',
-				function ( $m ) { return geopress_arcgis_webmap_embed( trim( $m[1] ) ); },
-				$content
-			);
-		}
-
-		// INSERT_ARCGIS_WEBSCENE — standalone ArcGIS 3D web scene by portal item ID.
-		if ( preg_match( '/INSERT_ARCGIS_WEBSCENE/', $content ) ) {
-			$content = preg_replace_callback(
-				'/INSERT_ARCGIS_WEBSCENE\(([^,)]+),[ ]?(\d+),[ ]?(\d+)\)/',
-				function ( $m ) { return geopress_arcgis_webscene_embed( trim( $m[1] ), (int) $m[2], (int) $m[3] ); },
-				$content
-			);
-			$content = preg_replace_callback(
-				'/INSERT_ARCGIS_WEBSCENE\(([^)]+)\)/',
-				function ( $m ) { return geopress_arcgis_webscene_embed( trim( $m[1] ) ); },
+				'/INSERT_ARCGIS_MAP\(([^)]+)\)/',
+				function ( $m ) { return geopress_arcgis_map_embed( trim( $m[1] ) ); },
 				$content
 			);
 		}

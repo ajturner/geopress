@@ -280,10 +280,9 @@ These files bootstrap WordPress (require `wp-load.php`) and output XML directly.
 
 | Tag | Output |
 |-----|--------|
-| `INSERT_ARCGIS_WEBMAP(item_id[,h,w])` | Standalone `<arcgis-map item-id="…">` |
-| `INSERT_ARCGIS_WEBSCENE(item_id[,h,w])` | Standalone `<arcgis-scene item-id="…">` (3D) |
+| `INSERT_ARCGIS_MAP(item_id[,h,w])` | Standalone embed — `geopress_arcgis_resolve_item_type()` hits the portal's `/sharing/rest/content/items/{id}?f=json` endpoint and dispatches to `<arcgis-map>` for `"Web Map"` or `<arcgis-scene>` for `"Web Scene"`. The lookup is cached in a transient for `DAY_IN_SECONDS` so it costs one request per item, ever. Unresolvable items render as a web map (the SDK surfaces a load error if incompatible). |
 
-Both are parsed in `GeoPress::embed_map_inpost()` next to the existing `INSERT_*` tags.
+Parsed in `GeoPress::embed_map_inpost()` next to the existing `INSERT_*` tags.
 
 ### Files
 

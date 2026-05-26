@@ -4,7 +4,7 @@ v3.1
 [NEW] ArcGIS Maps SDK for JavaScript 5.0 as a new map provider, using the SDK's web components (<arcgis-map>, <arcgis-scene>, <arcgis-feature-layer>) loaded from the single https://js.arcgis.com/5.0/ CDN module entry with runtime $arcgis.import() loading
 [NEW] OpenStreetMap is the default ArcGIS basemap — no API key required out of the box; optional ArcGIS Location Platform key unlocks Esri basemaps and private portal content
 [NEW] Web map and 3D web scene support via portal item ID; feature layer overlay by service URL or item ID
-[NEW] Content tags: INSERT_ARCGIS_WEBMAP(item_id[,h,w]) and INSERT_ARCGIS_WEBSCENE(item_id[,h,w]) for standalone embeds
+[NEW] Content tag: INSERT_ARCGIS_MAP(item_id[,h,w]) for standalone embeds — item type (web map vs web scene) is auto-resolved against the configured portal's items API and cached per item for a day
 [NEW] Admin options on the Maps page: ArcGIS portal URL, API key, default basemap, web map / web scene / feature layer item IDs
 [NEW] arcgis-map.js (ES module) handles single-point (data-lat/data-lon) and multi-location (data-locations JSON) graphics via arcgisViewReadyChange
 [NEW] Unit tests for the ArcGIS provider (44 tests, 105 assertions in the suite)

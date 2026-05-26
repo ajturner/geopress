@@ -97,3 +97,12 @@ if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
 if ( ! function_exists( 'is_wp_error' ) ) {
     function is_wp_error( $thing ) { return false; }
 }
+if ( ! function_exists( 'get_transient' ) ) {
+    function get_transient( $key ) { return false; }
+}
+if ( ! function_exists( 'set_transient' ) ) {
+    function set_transient( $key, $value, $expiration = 0 ) { return true; }
+}
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+    define( 'DAY_IN_SECONDS', 86400 );
+}

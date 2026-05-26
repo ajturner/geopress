@@ -207,6 +207,75 @@ function geopress_arcgis_webscene_embed( $item_id, $height = 0, $width = 0 ) {
 		. '</arcgis-scene><!-- end GeoPress ArcGIS WebScene -->' . "\n";
 }
 
+/**
+ * Resolves an ArcGIS portal item ID to its content type by querying the
+ * configured portal's items REST endpoint. Results are cached in a transient
+ * for a day so the lookup happens at most once per item per WordPress.
+ *
+ * @param string $item_id Portal item ID.
+ * @return string 'webmap', 'webscene', or 'unknown' on lookup failure.
+ */
+function geopress_arcgis_resolve_item_type( $item_id ) {
+	$item_id = sanitize_text_field( $item_id );
+	if ( '' === $item_id ) {
+		return 'unknown';
+	}
+
+	$cache_key = 'geopress_arcgis_item_type_' . md5( $item_id );
+	$cached    = get_transient( $cache_key );
+	if ( false !== $cached ) {
+		return $cached;
+	}
+
+	$opts   = geopress_arcgis_options();
+	$portal = rtrim( $opts['portal_url'], '/' );
+	$url    = $portal . '/sharing/rest/content/items/' . rawurlencode( $item_id ) . '?f=json';
+
+	$response = wp_remote_get( $url, array( 'timeout' => GEOPRESS_FETCH_TIMEOUT ) );
+	if ( is_wp_error( $response ) ) {
+		return 'unknown';
+	}
+
+	$body = wp_remote_retrieve_body( $response );
+	$data = json_decode( $body, true );
+	if ( ! is_array( $data ) || empty( $data['type'] ) ) {
+		return 'unknown';
+	}
+
+	if ( 'Web Scene' === $data['type'] ) {
+		$type = 'webscene';
+	} elseif ( 'Web Map' === $data['type'] ) {
+		$type = 'webmap';
+	} else {
+		$type = 'unknown';
+	}
+
+	set_transient( $cache_key, $type, DAY_IN_SECONDS );
+	return $type;
+}
+
+/**
+ * Unified ArcGIS map embed. Resolves the item type from the portal and
+ * dispatches to the web-map or web-scene renderer accordingly. Backs the
+ * INSERT_ARCGIS_MAP(item_id[,h,w]) content tag.
+ *
+ * @param string $item_id Portal item ID — may be a web map or a web scene.
+ * @param int    $height  Map height in px (0 = use saved option).
+ * @param int    $width   Map width in px (0 = use saved option).
+ * @return string
+ */
+function geopress_arcgis_map_embed( $item_id, $height = 0, $width = 0 ) {
+	$type = geopress_arcgis_resolve_item_type( $item_id );
+
+	if ( 'webscene' === $type ) {
+		return geopress_arcgis_webscene_embed( $item_id, $height, $width );
+	}
+
+	// Default to a web map for known web maps and for items that can't be
+	// resolved (the SDK will surface a load error if the item is incompatible).
+	return geopress_arcgis_webmap_embed( $item_id, $height, $width );
+}
+
 // ── Standalone map template functions ─────────────────────────────────────────
 
 /**

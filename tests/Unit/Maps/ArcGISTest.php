@@ -87,6 +87,72 @@ class ArcGISTest extends TestCase {
         $this->assertStringContainsString( 'width:500px',            $html );
     }
 
+    public function test_resolve_item_type_returns_webmap_for_web_map_response(): void {
+        Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
+        Functions\when( 'get_transient' )->justReturn( false );
+        Functions\when( 'set_transient' )->justReturn( true );
+        Functions\when( 'wp_remote_get' )->justReturn( array(
+            'body'     => '{"type":"Web Map","title":"London"}',
+            'response' => array( 'code' => 200 ),
+        ) );
+
+        $this->assertSame( 'webmap', geopress_arcgis_resolve_item_type( 'abc123' ) );
+    }
+
+    public function test_resolve_item_type_returns_webscene_for_web_scene_response(): void {
+        Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
+        Functions\when( 'get_transient' )->justReturn( false );
+        Functions\when( 'set_transient' )->justReturn( true );
+        Functions\when( 'wp_remote_get' )->justReturn( array(
+            'body'     => '{"type":"Web Scene","title":"3D city"}',
+            'response' => array( 'code' => 200 ),
+        ) );
+
+        $this->assertSame( 'webscene', geopress_arcgis_resolve_item_type( 'scene789' ) );
+    }
+
+    public function test_resolve_item_type_returns_unknown_for_other_item_types(): void {
+        Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
+        Functions\when( 'get_transient' )->justReturn( false );
+        Functions\when( 'set_transient' )->justReturn( true );
+        Functions\when( 'wp_remote_get' )->justReturn( array(
+            'body'     => '{"type":"Feature Service"}',
+            'response' => array( 'code' => 200 ),
+        ) );
+
+        $this->assertSame( 'unknown', geopress_arcgis_resolve_item_type( 'feat456' ) );
+    }
+
+    public function test_resolve_item_type_uses_transient_cache(): void {
+        Functions\when( 'get_transient' )->justReturn( 'webscene' );
+        // No wp_remote_get stub on purpose: a cache hit must not touch the network.
+        Functions\expect( 'wp_remote_get' )->never();
+
+        $this->assertSame( 'webscene', geopress_arcgis_resolve_item_type( 'cached' ) );
+    }
+
+    public function test_map_embed_renders_webscene_when_item_is_webscene(): void {
+        Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
+        Functions\when( 'get_transient' )->justReturn( 'webscene' );
+
+        $html = geopress_arcgis_map_embed( 'scene789', 300, 500 );
+
+        $this->assertStringContainsString( '<arcgis-scene ',  $html );
+        $this->assertStringContainsString( 'item-id="scene789"', $html );
+        $this->assertStringNotContainsString( '<arcgis-map ', $html );
+    }
+
+    public function test_map_embed_defaults_to_webmap_for_unknown_items(): void {
+        Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
+        Functions\when( 'get_transient' )->justReturn( 'unknown' );
+
+        $html = geopress_arcgis_map_embed( 'mystery', 300, 500 );
+
+        $this->assertStringContainsString( '<arcgis-map ',     $html );
+        $this->assertStringContainsString( 'item-id="mystery"', $html );
+        $this->assertStringNotContainsString( '<arcgis-scene ', $html );
+    }
+
     public function test_enqueue_scripts_injects_arcgis_config_when_provider_is_arcgis(): void {
         Functions\when( 'get_option' )->alias( $this->optionResolver( array(
             '_geopress_map_format'        => 'arcgis',
