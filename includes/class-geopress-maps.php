@@ -118,7 +118,7 @@ function geopress_arcgis_options() {
 	return array(
 		'portal_url'             => get_option( '_geopress_arcgis_portal_url', 'https://www.arcgis.com' ),
 		'api_key'                => get_option( '_geopress_arcgis_api_key', '' ),
-		'basemap'                => get_option( '_geopress_arcgis_basemap', 'arcgis/navigation' ),
+		'basemap'                => get_option( '_geopress_arcgis_basemap', 'osm' ),
 		'webmap_item_id'         => get_option( '_geopress_arcgis_webmap_item_id', '' ),
 		'webscene_item_id'       => get_option( '_geopress_arcgis_webscene_item_id', '' ),
 		'feature_layer_url'      => get_option( '_geopress_arcgis_feature_layer_url', '' ),

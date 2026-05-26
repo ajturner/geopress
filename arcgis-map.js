@@ -10,8 +10,23 @@
  * No AMD require() — SDK 5 is pure ES modules.
  */
 
-import Graphic from "https://js.arcgis.com/5.x/@arcgis/core/Graphic.js";
-import esriConfig from "https://js.arcgis.com/5.x/@arcgis/core/config.js";
+// SDK 5.0 CDN module loading. The single https://js.arcgis.com/5.0/ entry
+// (loaded as type="module" by register_scripts()) registers the web components
+// and exposes the global $arcgis.import() loader. We pull the core modules we
+// need at runtime rather than via deep per-module CDN import URLs.
+
+// Wait until the SDK bootstrap has exposed $arcgis.import().
+async function geopressArcGISReady() {
+	while ( typeof window.$arcgis === "undefined" || typeof window.$arcgis.import !== "function" ) {
+		await new Promise( resolve => setTimeout( resolve, 50 ) );
+	}
+}
+await geopressArcGISReady();
+
+const [ { default: Graphic }, { default: esriConfig } ] = await Promise.all( [
+	$arcgis.import( "@arcgis/core/Graphic.js" ),
+	$arcgis.import( "@arcgis/core/config.js" ),
+] );
 
 // Apply PHP-injected config (api key, portal URL for enterprise).
 const cfg = window.geopressArcGISConfig || {};

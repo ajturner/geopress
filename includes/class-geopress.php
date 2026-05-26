@@ -66,7 +66,7 @@ class GeoPress {
 		// ArcGIS Maps SDK v5 options.
 		add_option( '_geopress_arcgis_portal_url',          'https://www.arcgis.com' );
 		add_option( '_geopress_arcgis_api_key',             '' );
-		add_option( '_geopress_arcgis_basemap',             'arcgis/navigation' );
+		add_option( '_geopress_arcgis_basemap',             'osm' );
 		add_option( '_geopress_arcgis_webmap_item_id',      '' );
 		add_option( '_geopress_arcgis_webscene_item_id',    '' );
 		add_option( '_geopress_arcgis_feature_layer_url',   '' );
@@ -734,13 +734,13 @@ class GeoPress {
 		// ArcGIS Maps SDK v5 — web components bundle and our ES-module helper.
 		wp_register_style(
 			'geopress-arcgis-css',
-			'https://js.arcgis.com/5.x/esri/themes/light/main.css',
+			'https://js.arcgis.com/5.0/esri/themes/light/main.css',
 			array(),
 			null
 		);
 		wp_register_script(
 			'geopress-arcgis-components',
-			'https://js.arcgis.com/map-components/5.x/arcgis-map-components.esm.js',
+			'https://js.arcgis.com/5.0/',
 			array(),
 			null,
 			false

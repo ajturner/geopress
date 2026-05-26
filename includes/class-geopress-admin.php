@@ -368,7 +368,7 @@ class GeoPress_Admin {
 			// ArcGIS Maps SDK v5 settings.
 			update_option( '_geopress_arcgis_portal_url',           esc_url_raw( wp_unslash( $_POST['arcgis_portal_url'] ?? 'https://www.arcgis.com' ) ) );
 			update_option( '_geopress_arcgis_api_key',              sanitize_text_field( wp_unslash( $_POST['arcgis_api_key'] ?? '' ) ) );
-			update_option( '_geopress_arcgis_basemap',              sanitize_text_field( wp_unslash( $_POST['arcgis_basemap'] ?? 'arcgis/navigation' ) ) );
+			update_option( '_geopress_arcgis_basemap',              sanitize_text_field( wp_unslash( $_POST['arcgis_basemap'] ?? 'osm' ) ) );
 			update_option( '_geopress_arcgis_webmap_item_id',       sanitize_text_field( wp_unslash( $_POST['arcgis_webmap_item_id'] ?? '' ) ) );
 			update_option( '_geopress_arcgis_webscene_item_id',     sanitize_text_field( wp_unslash( $_POST['arcgis_webscene_item_id'] ?? '' ) ) );
 			update_option( '_geopress_arcgis_feature_layer_url',    esc_url_raw( wp_unslash( $_POST['arcgis_feature_layer_url'] ?? '' ) ) );
@@ -530,7 +530,7 @@ class GeoPress_Admin {
 		<?php
 		$arcgis_portal_url          = get_option( '_geopress_arcgis_portal_url', 'https://www.arcgis.com' );
 		$arcgis_api_key             = get_option( '_geopress_arcgis_api_key', '' );
-		$arcgis_basemap             = get_option( '_geopress_arcgis_basemap', 'arcgis/navigation' );
+		$arcgis_basemap             = get_option( '_geopress_arcgis_basemap', 'osm' );
 		$arcgis_webmap_item_id      = get_option( '_geopress_arcgis_webmap_item_id', '' );
 		$arcgis_webscene_item_id    = get_option( '_geopress_arcgis_webscene_item_id', '' );
 		$arcgis_fl_url              = get_option( '_geopress_arcgis_feature_layer_url', '' );
@@ -560,6 +560,7 @@ class GeoPress_Admin {
 					<select name="arcgis_basemap" id="arcgis_basemap">
 						<?php
 						$basemaps = array(
+							'osm'                => __( 'OpenStreetMap (no API key)', 'geopress' ),
 							'arcgis/navigation'  => __( 'Navigation (streets)', 'geopress' ),
 							'arcgis/streets'     => __( 'Streets', 'geopress' ),
 							'arcgis/imagery'     => __( 'Imagery (satellite)', 'geopress' ),
@@ -579,7 +580,7 @@ class GeoPress_Admin {
 						}
 						?>
 					</select>
-					<br /><em><?php esc_html_e( 'Used when no Web Map Item ID is specified.', 'geopress' ); ?></em>
+					<br /><em><?php esc_html_e( 'Used when no Web Map Item ID is specified. OpenStreetMap needs no API key; ArcGIS basemaps require one.', 'geopress' ); ?></em>
 				</td>
 			</tr>
 			<tr valign="top">
