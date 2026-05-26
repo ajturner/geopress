@@ -99,6 +99,183 @@ class GeoPress_Maps {
 	}
 }
 
+// ── ArcGIS helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Returns all saved ArcGIS options as an array.
+ *
+ * @return array {
+ *     @type string portal_url           ArcGIS portal URL.
+ *     @type string api_key              ArcGIS Platform API key (may be empty).
+ *     @type string basemap              Basemap style identifier.
+ *     @type string webmap_item_id       Portal item ID for a web map (may be empty).
+ *     @type string webscene_item_id     Portal item ID for a web scene (may be empty).
+ *     @type string feature_layer_url    Feature layer service URL (may be empty).
+ *     @type string feature_layer_item_id Portal item ID for a feature layer (may be empty).
+ * }
+ */
+function geopress_arcgis_options() {
+	return array(
+		'portal_url'             => get_option( '_geopress_arcgis_portal_url', 'https://www.arcgis.com' ),
+		'api_key'                => get_option( '_geopress_arcgis_api_key', '' ),
+		'basemap'                => get_option( '_geopress_arcgis_basemap', 'osm' ),
+		'webmap_item_id'         => get_option( '_geopress_arcgis_webmap_item_id', '' ),
+		'webscene_item_id'       => get_option( '_geopress_arcgis_webscene_item_id', '' ),
+		'feature_layer_url'      => get_option( '_geopress_arcgis_feature_layer_url', '' ),
+		'feature_layer_item_id'  => get_option( '_geopress_arcgis_feature_layer_item_id', '' ),
+	);
+}
+
+/**
+ * Builds the optional <arcgis-feature-layer> child element string.
+ *
+ * If both url and item_id are set, url takes precedence.
+ *
+ * @param string $url     Feature layer service URL.
+ * @param string $item_id Feature layer portal item ID.
+ * @return string
+ */
+function geopress_arcgis_feature_layer_html( $url, $item_id ) {
+	if ( '' !== $url ) {
+		return '<arcgis-feature-layer url="' . esc_url( $url ) . '"></arcgis-feature-layer>';
+	}
+	if ( '' !== $item_id ) {
+		return '<arcgis-feature-layer item-id="' . esc_attr( $item_id ) . '"></arcgis-feature-layer>';
+	}
+	return '';
+}
+
+/**
+ * Returns an ArcGIS web map embed (standalone, not tied to a post location).
+ *
+ * @param string $item_id Portal item ID of the web map.
+ * @param int    $height  Map height in px (0 = use saved option).
+ * @param int    $width   Map width in px (0 = use saved option).
+ * @return string
+ */
+function geopress_arcgis_webmap_embed( $item_id, $height = 0, $width = 0 ) {
+	if ( '' === $item_id ) {
+		return '';
+	}
+	if ( ! $height || ! $width ) {
+		$height = (int) get_option( '_geopress_mapheight', 200 );
+		$width  = (int) get_option( '_geopress_mapwidth', 400 );
+	}
+	$arcgis  = geopress_arcgis_options();
+	$api_key = '' !== $arcgis['api_key'] ? ' api-key="' . esc_attr( $arcgis['api_key'] ) . '"' : '';
+	$zoom    = GeoPress::mapstraction_map_zoom();
+
+	$fl = geopress_arcgis_feature_layer_html( $arcgis['feature_layer_url'], $arcgis['feature_layer_item_id'] );
+
+	return '<!-- GeoPress ArcGIS WebMap -->'
+		. '<arcgis-map item-id="' . esc_attr( $item_id ) . '"'
+		. ' zoom="' . (int) $zoom . '"'
+		. $api_key
+		. ' style="height:' . (int) $height . 'px; width:' . (int) $width . 'px;">'
+		. $fl
+		. '<arcgis-zoom position="top-left"></arcgis-zoom>'
+		. '<arcgis-basemap-toggle position="bottom-right"></arcgis-basemap-toggle>'
+		. '</arcgis-map><!-- end GeoPress ArcGIS WebMap -->' . "\n";
+}
+
+/**
+ * Returns an ArcGIS web scene embed (standalone, not tied to a post location).
+ *
+ * @param string $item_id Portal item ID of the web scene.
+ * @param int    $height  Map height in px (0 = use saved option).
+ * @param int    $width   Map width in px (0 = use saved option).
+ * @return string
+ */
+function geopress_arcgis_webscene_embed( $item_id, $height = 0, $width = 0 ) {
+	if ( '' === $item_id ) {
+		return '';
+	}
+	if ( ! $height || ! $width ) {
+		$height = (int) get_option( '_geopress_mapheight', 200 );
+		$width  = (int) get_option( '_geopress_mapwidth', 400 );
+	}
+	$arcgis  = geopress_arcgis_options();
+	$api_key = '' !== $arcgis['api_key'] ? ' api-key="' . esc_attr( $arcgis['api_key'] ) . '"' : '';
+
+	$fl = geopress_arcgis_feature_layer_html( $arcgis['feature_layer_url'], $arcgis['feature_layer_item_id'] );
+
+	return '<!-- GeoPress ArcGIS WebScene -->'
+		. '<arcgis-scene item-id="' . esc_attr( $item_id ) . '"'
+		. $api_key
+		. ' style="height:' . (int) $height . 'px; width:' . (int) $width . 'px;">'
+		. $fl
+		. '</arcgis-scene><!-- end GeoPress ArcGIS WebScene -->' . "\n";
+}
+
+/**
+ * Resolves an ArcGIS portal item ID to its content type by querying the
+ * configured portal's items REST endpoint. Results are cached in a transient
+ * for a day so the lookup happens at most once per item per WordPress.
+ *
+ * @param string $item_id Portal item ID.
+ * @return string 'webmap', 'webscene', or 'unknown' on lookup failure.
+ */
+function geopress_arcgis_resolve_item_type( $item_id ) {
+	$item_id = sanitize_text_field( $item_id );
+	if ( '' === $item_id ) {
+		return 'unknown';
+	}
+
+	$cache_key = 'geopress_arcgis_item_type_' . md5( $item_id );
+	$cached    = get_transient( $cache_key );
+	if ( false !== $cached ) {
+		return $cached;
+	}
+
+	$opts   = geopress_arcgis_options();
+	$portal = rtrim( $opts['portal_url'], '/' );
+	$url    = $portal . '/sharing/rest/content/items/' . rawurlencode( $item_id ) . '?f=json';
+
+	$response = wp_remote_get( $url, array( 'timeout' => GEOPRESS_FETCH_TIMEOUT ) );
+	if ( is_wp_error( $response ) ) {
+		return 'unknown';
+	}
+
+	$body = wp_remote_retrieve_body( $response );
+	$data = json_decode( $body, true );
+	if ( ! is_array( $data ) || empty( $data['type'] ) ) {
+		return 'unknown';
+	}
+
+	if ( 'Web Scene' === $data['type'] ) {
+		$type = 'webscene';
+	} elseif ( 'Web Map' === $data['type'] ) {
+		$type = 'webmap';
+	} else {
+		$type = 'unknown';
+	}
+
+	set_transient( $cache_key, $type, DAY_IN_SECONDS );
+	return $type;
+}
+
+/**
+ * Unified ArcGIS map embed. Resolves the item type from the portal and
+ * dispatches to the web-map or web-scene renderer accordingly. Backs the
+ * INSERT_ARCGIS_MAP(item_id[,h,w]) content tag.
+ *
+ * @param string $item_id Portal item ID — may be a web map or a web scene.
+ * @param int    $height  Map height in px (0 = use saved option).
+ * @param int    $width   Map width in px (0 = use saved option).
+ * @return string
+ */
+function geopress_arcgis_map_embed( $item_id, $height = 0, $width = 0 ) {
+	$type = geopress_arcgis_resolve_item_type( $item_id );
+
+	if ( 'webscene' === $type ) {
+		return geopress_arcgis_webscene_embed( $item_id, $height, $width );
+	}
+
+	// Default to a web map for known web maps and for items that can't be
+	// resolved (the SDK will surface a load error if the item is incompatible).
+	return geopress_arcgis_webmap_embed( $item_id, $height, $width );
+}
+
 // ── Standalone map template functions ─────────────────────────────────────────
 
 /**
@@ -127,6 +304,55 @@ function geopress_map( $height = '', $width = '', $locations = -1, $unique_id = 
 	$locs = $loop_locations
 		? GeoPress::get_loop_locations( $locations )
 		: GeoPress::get_location_posts( $locations );
+
+	// ── ArcGIS Maps SDK v5 path ───────────────────────────────────────────────
+	if ( 'arcgis' === $map_format ) {
+		$arcgis = geopress_arcgis_options();
+
+		$location_data = array();
+		$blog_url      = site_url();
+
+		foreach ( $locs as $posts ) {
+			$loc    = $posts[0];
+			$coords = preg_split( '/\s+/', trim( $loc->coord ) );
+			$lat    = isset( $coords[0] ) ? (float) $coords[0] : 0;
+			$lon    = isset( $coords[1] ) ? (float) $coords[1] : 0;
+
+			$details = esc_html( $loc->name );
+			foreach ( $posts as $post ) {
+				$details .= ' <a href="' . esc_url( $blog_url . '/?p=' . $post->ID ) . '">' . esc_html( $post->post_title ) . '</a>';
+			}
+
+			$location_data[] = array(
+				'lat'     => $lat,
+				'lon'     => $lon,
+				'name'    => $loc->name,
+				'details' => $details,
+			);
+		}
+
+		$api_key = '' !== $arcgis['api_key'] ? ' api-key="' . esc_attr( $arcgis['api_key'] ) . '"' : '';
+		$fl      = geopress_arcgis_feature_layer_html( $arcgis['feature_layer_url'], $arcgis['feature_layer_item_id'] );
+
+		// If a default web map is configured, use it as the base.
+		$item_attr = '' !== $arcgis['webmap_item_id']
+			? ' item-id="' . esc_attr( $arcgis['webmap_item_id'] ) . '"'
+			: ' basemap="' . esc_attr( $arcgis['basemap'] ) . '"';
+
+		$output  = '<!-- GeoPress ArcGIS Map -->';
+		$output .= '<arcgis-map id="geo_map' . esc_attr( $map_id ) . '"'
+			. $item_attr
+			. $api_key
+			. ' data-locations="' . esc_attr( wp_json_encode( $location_data ) ) . '"'
+			. ' style="height:' . (int) $height . 'px; width:' . (int) $width . 'px;">';
+		$output .= $fl;
+		$output .= '<arcgis-zoom position="top-left"></arcgis-zoom>';
+		$output .= '<arcgis-basemap-toggle position="bottom-right"></arcgis-basemap-toggle>';
+		$output .= '</arcgis-map><!-- end GeoPress ArcGIS Map -->' . "\n";
+
+		return $output;
+	}
+	// ── End ArcGIS path ───────────────────────────────────────────────────────
 
 	$output  = '<div id="geo_map' . esc_attr( $map_id ) . '" class="mapstraction" style="height: ' . (int) $height . 'px; width: ' . (int) $width . 'px;"></div>' . "\n";
 	$output .= '<!-- GeoPress Map --><script type="text/javascript">' . "\n";
@@ -218,6 +444,50 @@ function geopress_page_map( $height = '', $width = '', $controls = true ) {
 	$map_id       = $post->ID . $geopress_map_index;
 	$map_controls = $controls ? GeoPress::mapstraction_map_controls() : 'false';
 	$geo          = GeoPress::get_geo( $post->ID );
+	$map_format   = GeoPress::mapstraction_map_format( $geo ? $geo->map_format : '' );
+
+	// ── ArcGIS Maps SDK v5 path ───────────────────────────────────────────────
+	if ( 'arcgis' === $map_format ) {
+		$arcgis        = geopress_arcgis_options();
+		$location_data = array();
+
+		foreach ( $children as $key => $value ) {
+			$child_geo = GeoPress::get_geo( (int) $key );
+			if ( ! $child_geo ) {
+				continue;
+			}
+			$coords = preg_split( '/\s+/', trim( $child_geo->coord ) );
+			$lat    = isset( $coords[0] ) ? (float) $coords[0] : 0;
+			$lon    = isset( $coords[1] ) ? (float) $coords[1] : 0;
+			$location_data[] = array(
+				'lat'     => $lat,
+				'lon'     => $lon,
+				'name'    => $child_geo->name,
+				'details' => '',
+			);
+		}
+
+		$api_key   = '' !== $arcgis['api_key'] ? ' api-key="' . esc_attr( $arcgis['api_key'] ) . '"' : '';
+		$fl        = geopress_arcgis_feature_layer_html( $arcgis['feature_layer_url'], $arcgis['feature_layer_item_id'] );
+		$item_attr = '' !== $arcgis['webmap_item_id']
+			? ' item-id="' . esc_attr( $arcgis['webmap_item_id'] ) . '"'
+			: ' basemap="' . esc_attr( $arcgis['basemap'] ) . '"';
+
+		$output  = '<!-- GeoPress ArcGIS Map -->';
+		$output .= '<arcgis-map id="geo_map' . esc_attr( $map_id ) . '"'
+			. $item_attr
+			. $api_key
+			. ' data-locations="' . esc_attr( wp_json_encode( $location_data ) ) . '"'
+			. ' style="height:' . (int) $height . 'px; width:' . (int) $width . 'px;">';
+		$output .= $fl;
+		$output .= '<arcgis-zoom position="top-left"></arcgis-zoom>';
+		$output .= '<arcgis-basemap-toggle position="bottom-right"></arcgis-basemap-toggle>';
+		$output .= '</arcgis-map><!-- end GeoPress ArcGIS Map -->' . "\n";
+
+		$geopress_map_index++;
+		return $output;
+	}
+	// ── End ArcGIS path ───────────────────────────────────────────────────────
 
 	$output  = '<div id="geo_map' . esc_attr( $map_id ) . '" class="mapstraction" style="height: ' . (int) $height . 'px; width: ' . (int) $width . 'px;"></div>';
 	$output .= '<!-- GeoPress Map --><script type="text/javascript">';
@@ -275,17 +545,77 @@ function geopress_post_map( $height = '', $width = '', $controls = true, $overla
 		$width  = (int) get_option( '_geopress_mapwidth', 400 );
 	}
 
-	$map_id       = $post->ID . $geopress_map_index;
-	$coords       = preg_split( '/\s+/', trim( $geo->coord ) );
-	$lat          = isset( $coords[0] ) ? (float) $coords[0] : 0;
-	$lon          = isset( $coords[1] ) ? (float) $coords[1] : 0;
+	$map_id     = $post->ID . $geopress_map_index;
+	$coords     = preg_split( '/\s+/', trim( $geo->coord ) );
+	$lat        = isset( $coords[0] ) ? (float) $coords[0] : 0;
+	$lon        = isset( $coords[1] ) ? (float) $coords[1] : 0;
+	$map_format = GeoPress::mapstraction_map_format( $geo->map_format );
+
+	// ── ArcGIS Maps SDK v5 path ───────────────────────────────────────────────
+	if ( 'arcgis' === $map_format ) {
+		$arcgis  = geopress_arcgis_options();
+		$zoom    = GeoPress::mapstraction_map_zoom( $geo->map_zoom );
+		$api_key = '' !== $arcgis['api_key'] ? ' api-key="' . esc_attr( $arcgis['api_key'] ) . '"' : '';
+		$fl      = geopress_arcgis_feature_layer_html( $arcgis['feature_layer_url'], $arcgis['feature_layer_item_id'] );
+
+		if ( '' !== $arcgis['webscene_item_id'] ) {
+			// Web scene (3D): use item-id; marker data attributes still present
+			// so arcgis-map.js can add a point if desired.
+			$output  = '<!-- GeoPress ArcGIS Scene -->';
+			$output .= '<arcgis-scene id="geo_map' . esc_attr( $map_id ) . '"'
+				. ' item-id="' . esc_attr( $arcgis['webscene_item_id'] ) . '"'
+				. $api_key
+				. ' data-lat="' . esc_attr( $lat ) . '"'
+				. ' data-lon="' . esc_attr( $lon ) . '"'
+				. ' data-name="' . esc_attr( $geo->name ) . '"'
+				. ' style="height:' . (int) $height . 'px; width:' . (int) $width . 'px;">';
+			$output .= $fl;
+			$output .= '</arcgis-scene><!-- end GeoPress ArcGIS Scene -->' . "\n";
+		} elseif ( '' !== $arcgis['webmap_item_id'] ) {
+			// Web map from portal item.
+			$output  = '<!-- GeoPress ArcGIS WebMap -->';
+			$output .= '<arcgis-map id="geo_map' . esc_attr( $map_id ) . '"'
+				. ' item-id="' . esc_attr( $arcgis['webmap_item_id'] ) . '"'
+				. ' zoom="' . (int) $zoom . '"'
+				. $api_key
+				. ' data-lat="' . esc_attr( $lat ) . '"'
+				. ' data-lon="' . esc_attr( $lon ) . '"'
+				. ' data-name="' . esc_attr( $geo->name ) . '"'
+				. ' style="height:' . (int) $height . 'px; width:' . (int) $width . 'px;">';
+			$output .= $fl;
+			$output .= '<arcgis-zoom position="top-left"></arcgis-zoom>';
+			$output .= '<arcgis-basemap-toggle position="bottom-right"></arcgis-basemap-toggle>';
+			$output .= '</arcgis-map><!-- end GeoPress ArcGIS WebMap -->' . "\n";
+		} else {
+			// Coordinate-based map with default basemap.
+			$output  = '<!-- GeoPress ArcGIS Map -->';
+			$output .= '<arcgis-map id="geo_map' . esc_attr( $map_id ) . '"'
+				. ' basemap="' . esc_attr( $arcgis['basemap'] ) . '"'
+				. ' center="' . esc_attr( $lon . ',' . $lat ) . '"'
+				. ' zoom="' . (int) $zoom . '"'
+				. $api_key
+				. ' data-lat="' . esc_attr( $lat ) . '"'
+				. ' data-lon="' . esc_attr( $lon ) . '"'
+				. ' data-name="' . esc_attr( $geo->name ) . '"'
+				. ' style="height:' . (int) $height . 'px; width:' . (int) $width . 'px;">';
+			$output .= $fl;
+			$output .= '<arcgis-zoom position="top-left"></arcgis-zoom>';
+			$output .= '<arcgis-basemap-toggle position="bottom-right"></arcgis-basemap-toggle>';
+			$output .= '</arcgis-map><!-- end GeoPress ArcGIS Map -->' . "\n";
+		}
+
+		$geopress_map_index++;
+		return $output;
+	}
+	// ── End ArcGIS path ───────────────────────────────────────────────────────
+
 	$map_controls = $controls ? GeoPress::mapstraction_map_controls() : 'false';
 
 	$output  = '<div id="geo_map' . esc_attr( $map_id ) . '" class="mapstraction" style="height: ' . (int) $height . 'px; width: ' . (int) $width . 'px;"></div>';
 	$output .= '<!-- GeoPress Map --><script type="text/javascript">';
 	$output .= 'geopress_addEvent(window,"load", function() { geopress_makemap(';
 	$output .= $map_id . ',"' . esc_js( $geo->name ) . '",' . $lat . ',' . $lon . ',"';
-	$output .= esc_js( GeoPress::mapstraction_map_format( $geo->map_format ) ) . '",';
+	$output .= esc_js( $map_format ) . '",';
 	$output .= GeoPress::mapstraction_map_type( $geo->map_type ) . ', ' . $map_controls . ',';
 	$output .= GeoPress::mapstraction_map_zoom( $geo->map_zoom ) . ', "' . esc_js( $geopress_marker ) . '"';
 	$output .= ')';

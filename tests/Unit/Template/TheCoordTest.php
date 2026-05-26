@@ -16,7 +16,9 @@ class TheCoordTest extends TestCase {
         $GLOBALS['post']  = $post;
 
         $wpdb         = \Mockery::mock( 'wpdb' );
-        $wpdb->prefix = 'wp_';
+        $wpdb->prefix   = 'wp_';
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->posts    = 'wp_posts';
         $GLOBALS['wpdb'] = $wpdb;
     }
 

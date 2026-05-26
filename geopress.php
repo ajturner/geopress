@@ -3,7 +3,7 @@
  * Plugin Name: GeoPress
  * Plugin URI:  https://georss.org/geopress/
  * Description: GeoPress adds geographic tagging of your posts and blog. Enter an address or latitude/longitude, embed interactive maps, and export GeoRSS/KML/GPX feeds.
- * Version:     3.0
+ * Version:     3.1
  * Author:      Andrew Turner & Mikel Maron
  * Author URI:  https://highearthorbit.com
  * License:     GPL-2.0+
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-define( 'GEOPRESS_VERSION',              '3.0' );
+define( 'GEOPRESS_VERSION',              '3.1' );
 define( 'GEOPRESS_DIR',                  plugin_dir_path( __FILE__ ) );
 define( 'GEOPRESS_URL',                  plugin_dir_url( __FILE__ ) );
 define( 'GEOPRESS_BASENAME',             plugin_basename( __FILE__ ) );
