@@ -219,7 +219,7 @@ class GeoPress {
 		global $wpdb;
 
 		$loc_id = (int) $loc_id;
-		if ( ! $loc_id ) {
+		if ( $loc_id <= 0 ) {
 			return null;
 		}
 
