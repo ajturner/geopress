@@ -17,7 +17,16 @@ class TheAddressTest extends TestCase {
 
         $wpdb         = \Mockery::mock( 'wpdb' );
         $wpdb->prefix = 'wp_';
+        $wpdb->posts     = 'wp_posts';
+        $wpdb->postmeta  = 'wp_postmeta';
         $GLOBALS['wpdb'] = $wpdb;
+        // Escape for real rather than passing through: some tests assert that
+        // markup in stored location data does not survive into the output.
+        Functions\when( 'esc_html' )->alias(
+            static function ( $text ) {
+                return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+            }
+        );
     }
 
     protected function tearDown(): void {

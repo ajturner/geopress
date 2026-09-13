@@ -1,5 +1,12 @@
 GeoPress Changelog
 ====================
+v3.0.1
+[NEW] Plugin header now declares "Requires at least: 6.0" and "Requires PHP: 8.0" so WordPress blocks activation on incompatible sites instead of letting them fail at runtime
+[NEW] Continuous integration on GitHub Actions: PHP lint plus the unit suite across PHP 8.0-8.4
+[FIXED] The unit test suite could not run at all. WordPress functions were stubbed inside tests/bootstrap.php, which Patchwork (Brain Monkey's engine) cannot redefine, so every test that mocked one failed with "DefinedTooEarly". Stubs are now declared per-test and the suite passes (37 tests).
+[FIXED] GeoPress::get_location() treated a negative ID as valid and issued a pointless query; it now returns null for any ID <= 0
+[CHANGED] Removed the three internal calls to the defunct yahoo_mapurl(), which always returned empty strings. The function and the other yahoo_* helpers remain as deprecated no-ops for themes that still call them.
+
 v3.0
 [NEW] Modernized for WordPress 6.x and PHP 8.0+
 [NEW] Full Block (Gutenberg) editor support: Location box in the document sidebar plus [geopress_map], [geopress_post_map], and [geopress_page_map] shortcodes

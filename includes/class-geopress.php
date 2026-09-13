@@ -210,7 +210,7 @@ class GeoPress {
 		global $wpdb;
 
 		$loc_id = (int) $loc_id;
-		if ( ! $loc_id ) {
+		if ( $loc_id <= 0 ) {
 			return null;
 		}
 
@@ -429,9 +429,7 @@ class GeoPress {
 			list( $lat, $lon ) = geocode( $addr );
 		}
 
-		list( $warn, $mapurl ) = yahoo_mapurl( $addr );
-
-		$geo_id = self::save_geo( -1, $locname, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, 1 );
+		$geo_id = self::save_geo( -1, $locname, $addr, "{$lat} {$lon}", 'point', '', '', 1 );
 
 		if ( $geo_id ) {
 			if ( ! update_post_meta( $post_id, '_geopress_id', $geo_id ) ) {
