@@ -1,0 +1,68 @@
+schema: spec-driven
+
+context: |
+  GeoPress is a WordPress plugin that adds geographic tagging to posts and
+  pages: authors attach a location, and the plugin renders maps and publishes
+  GeoRSS, KML and GPX feeds.
+
+  Tech stack
+  - PHP 8.0+ (CI covers 8.0 through 8.4), no framework, no build step.
+  - WordPress 6.0+, tested up to 7.0. Both Block and Classic editors supported.
+  - Vanilla JavaScript, no jQuery. Maps go through the vendored mapstraction.js
+    abstraction layer, which wraps several providers.
+  - PHPUnit 9 with Brain Monkey and Mockery. No live WordPress in the suite.
+
+  Layout
+  - geopress.php is a thin bootstrap: constants, includes, hook registration.
+  - includes/ holds the logic, one concern per file: class-geopress.php (core,
+    DB, query hooks, save_post, content filters), class-geopress-admin.php
+    (admin pages and the editor metabox), class-geopress-maps.php (rendering),
+    class-geopress-feeds.php (GeoRSS namespaces and feed entries),
+    geocoding.php (Nominatim), template-functions.php (theme globals).
+  - wp-kml.php, wp-gpx.php and wp-kml-link.php are standalone feed endpoints.
+  - mapstraction.js is vendored third-party code. Never edit it.
+
+  Conventions
+  - Core logic lives in static methods on the GeoPress class. Theme-facing
+    functions are globals, defined in template-functions.php, and their names
+    are a public contract that themes depend on.
+  - WordPress coding style: snake_case, tabs in PHP files.
+  - Every query goes through $wpdb->prepare(), ->insert() or ->update().
+  - Sanitize input on the way in, escape output for its context on the way out.
+  - Nonce-protect every state-changing form, including the post metabox.
+  - Never pre-encode a value passed to add_query_arg() — it encodes its own.
+  - Coordinates are stored as "lat lon", space-separated. Readers should
+    accept comma-separated too.
+  - Yahoo Maps is removed. The yahoo_* functions in geocoding.php survive only
+    as deprecated shims for old themes; GeoPress itself must not call them.
+
+  Testing notes
+  - Declare the WordPress functions a test needs with Brain Monkey, per test.
+    Never add stubs to tests/bootstrap.php: Patchwork cannot redefine a
+    function declared in a file that was already executing when it loaded, so
+    a stub there becomes permanently unmockable.
+  - Plugin functions (geocode(), the yahoo_* shims) cannot be mocked for the
+    same reason. Stub the WordPress calls they make instead, such as
+    wp_remote_get().
+  - composer.lock is deliberately not committed: the supported PHP range is
+    wide enough that a lock resolved on one version pins packages that cannot
+    install on another.
+
+rules:
+  proposal:
+    - State the user-visible behaviour change, not the code change.
+    - Call out any change to a theme-facing function name or signature as a
+      breaking change, since themes call them directly.
+  specs:
+    - Write requirements about observable behaviour, not implementation.
+    - Where a requirement exists to prevent a specific past defect, say so in
+      one clause, so a later reader does not simplify it away.
+  tasks:
+    - Include running `composer test` before any task is considered done.
+
+operations:
+  apply:
+    guidance:
+      - Run `composer test` and `php -l` on changed files before finishing.
+      - Manual verification is still required for editor, map and feed changes;
+        the unit suite does not exercise them.
