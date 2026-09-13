@@ -206,29 +206,37 @@ Machine tags in WordPress post tags are also supported: `geo:lat=60.15`, `geo:lo
 
 ## WordPress Hooks Used
 
+All registration lives in `geopress.php`.
+
 **Actions:**
-- `activate_geopress/geopress.php` → `GeoPress::install()`
-- `save_post`, `edit_post`, `publish_post` → `GeoPress::update_post()`
-- `the_content` → `GeoPress::embed_map_inpost()`
-- `edit_form_advanced`, `simple_edit_form`, `edit_page_form` → `GeoPress::location_edit_form()`
+- activation (via `register_activation_hook()`) → `GeoPress::install()`
+- `save_post` → `GeoPress::update_post()`
+- `add_meta_boxes` → `GeoPress_Admin::register_meta_boxes()`
 - `template_redirect` → `GeoPress::location_redirect()`
-- `admin_menu` → registers admin pages
-- `wp_head`, `admin_head` → outputs scripts/styles
-- `atom_ns`, `rss2_ns`, `rdf_ns`, `rss_ns` → `GeoPress::geopress_namespace()`
-- `atom_entry`, `rss2_item`, `rdf_item` → outputs feed location data
+- `admin_menu` → `GeoPress_Admin::admin_menu()`
+- `wp_enqueue_scripts` → `GeoPress::enqueue_scripts()`
+- `admin_enqueue_scripts` → `GeoPress::enqueue_admin_scripts()`
+- `atom_ns`, `rss2_ns`, `rdf_ns`, `rss_ns` → `GeoPress_Feeds::geopress_namespace()`
+- `atom_entry` → `GeoPress_Feeds::atom_entry()`
+- `rss2_item`, `rdf_item`, `rss_item` → `GeoPress_Feeds::rss2_item()`
 
 **Filters:**
+- `the_content` → `GeoPress::embed_map_inpost()`, then `GeoPress::embed_data_inpost()`
 - `posts_join` → `GeoPress::join_clause()`
 - `posts_where` → `GeoPress::where_clause()`
+
+**Shortcodes:** `[geopress_map]`, `[geopress_post_map]`, `[geopress_page_map]` —
+these are the Block editor path to the `INSERT_MAP` tags above.
 
 ---
 
 ## Development Conventions
 
 ### PHP
-- All plugin logic is static methods on the `GeoPress` class — maintain this pattern for core functionality.
-- Template/theme-facing functions are global PHP functions defined after the class.
-- WordPress coding style: snake_case for functions and variables, no strict typing.
+- Core logic is static methods on the `GeoPress` class; admin, map and feed code lives on `GeoPress_Admin`, `GeoPress_Maps` and `GeoPress_Feeds`. Keep new code on the class that owns the concern.
+- Theme-facing functions are global PHP functions in `includes/template-functions.php`. Their names are a public contract — themes call them directly, so a rename is a silent breakage at render time.
+- WordPress coding style: snake_case for functions and variables, tabs in PHP files, no strict typing.
+- Never pre-encode a value passed to `add_query_arg()` — it does its own encoding, and pre-encoding corrupts the result.
 - All SQL goes through `$wpdb->prepare()`, `$wpdb->insert()` or `$wpdb->update()`. Never build a query by concatenating request data.
 - Settings are read/written with `get_option()` / `update_option()`.
 
@@ -238,10 +246,11 @@ Machine tags in WordPress post tags are also supported: `geo:lat=60.15`, `geo:lo
 - jQuery is not used — vanilla JS only.
 
 ### Security Considerations
-- The codebase predates WordPress's `$wpdb->prepare()` adoption. When adding or modifying any SQL, **always use `$wpdb->prepare()`** to prevent SQL injection.
-- Sanitize all user input with `sanitize_text_field()`, `intval()`, `floatval()` etc. before saving.
-- Escape all output with `esc_html()`, `esc_attr()`, `esc_url()` as appropriate.
-- Nonces should be used for any form submissions (some existing forms lack them — add when modifying).
+- Every query goes through `$wpdb->prepare()`, `$wpdb->insert()` or `$wpdb->update()`. Never concatenate request data into SQL.
+- Unslash and sanitize all request input (`wp_unslash()` then `sanitize_text_field()`, `absint()`, `floatval()`) before use or storage.
+- Escape all output for its context: `esc_html()`, `esc_attr()`, `esc_url()`, `esc_js()`.
+- Every state-changing form is nonce-protected, including the post metabox. Keep it that way when adding forms.
+- Verify a nonce with `wp_unslash()` only — never pass it through `sanitize_key()` or similar, which can alter the value and make verification fail.
 
 ---
 
