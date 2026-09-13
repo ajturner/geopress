@@ -118,6 +118,15 @@ composer test:coverage  # generate a coverage report in coverage/
 
 The test suite uses [Brain Monkey](https://github.com/Brain-WP/BrainMonkey) to stub WordPress functions and Mockery to mock `$wpdb`, so no live WordPress install is required. Manual UI testing (the editor metabox, map rendering, feed output) is still needed for any UI/JS change.
 
+CI runs the lint and unit suite against PHP 8.0–8.4 on every push and pull request.
+
+Two things to know when adding tests:
+
+- **Declare every WordPress function a test needs**, with `Functions\when()` / `expect()`. Do not add stubs to `tests/bootstrap.php` — Patchwork can only redefine functions in files it instruments, and the bootstrap is already running by the time it loads, so a stub declared there becomes permanently unmockable.
+- **Plugin functions cannot be mocked** for the same reason (`geocode()`, `yahoo_*`). Stub the WordPress calls they make instead — e.g. `wp_remote_get()` — to keep a test hermetic.
+
+`composer.lock` is intentionally not committed: the supported PHP range is wide enough that a lock resolved on one version pins packages that cannot install on another.
+
 `mapstraction.js` is a vendored third-party library — **do not edit it**.
 
 ## Architecture
@@ -135,7 +144,11 @@ The test suite uses [Brain Monkey](https://github.com/Brain-WP/BrainMonkey) to s
 
 ## Changelog
 
-See [CHANGES.TXT](CHANGES.TXT) for the full history. The latest release, **3.0**, modernizes the plugin for WordPress 6.x / PHP 8.0+, refactors the single-file plugin into modular classes, adds Block editor support and a test suite, switches geocoding to Nominatim, and removes the discontinued Yahoo Maps provider.
+See [CHANGES.TXT](CHANGES.TXT) for the full history.
+
+**3.0.1** repairs the test suite (it could not run at all), adds CI across PHP 8.0–8.4, and declares the plugin's WordPress/PHP requirements in its header so incompatible sites cannot activate it.
+
+**3.0** modernized the plugin for WordPress 6.x / PHP 8.0+, refactored the single-file plugin into modular classes, added Block editor support and a test suite, switched geocoding to Nominatim, and removed the discontinued Yahoo Maps provider.
 
 ## Credits
 

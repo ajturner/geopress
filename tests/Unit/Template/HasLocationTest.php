@@ -17,6 +17,8 @@ class HasLocationTest extends TestCase {
 
         $wpdb         = \Mockery::mock( 'wpdb' );
         $wpdb->prefix = 'wp_';
+        $wpdb->posts     = 'wp_posts';
+        $wpdb->postmeta  = 'wp_postmeta';
         $GLOBALS['wpdb'] = $wpdb;
     }
 
