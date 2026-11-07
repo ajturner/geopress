@@ -38,13 +38,33 @@ The provider list MUST offer exactly the providers GeoPress can render. Yahoo Ma
 #### Scenario: Administrator opens the Maps page
 
 - **WHEN** the provider dropdown is rendered
-- **THEN** it lists Google, Microsoft, OpenStreetMap and OpenLayers
+- **THEN** it lists Google, Microsoft, OpenStreetMap, OpenLayers and ArcGIS
 - **AND** it does not list Yahoo
 
 #### Scenario: Options page is rendered
 
 - **WHEN** the Options page is rendered
 - **THEN** it contains no Yahoo application ID field
+
+### Requirement: ArcGIS works without a key and keys only widen it
+
+The ArcGIS provider MUST render with no API key, using an OpenStreetMap basemap by default. An API key and a custom portal URL MUST be optional settings that only unlock Esri basemaps and private portal content. When the provider is ArcGIS, the configured key and portal URL MUST be passed to the front end so the SDK can use them.
+
+#### Scenario: ArcGIS is selected with no key
+
+- **WHEN** the provider is set to ArcGIS and no API key is configured
+- **THEN** maps render on an OpenStreetMap basemap
+- **AND** the portal defaults to ArcGIS Online
+
+#### Scenario: A key and portal are configured
+
+- **WHEN** the provider is ArcGIS and an API key and portal URL are saved
+- **THEN** both are exposed to the front-end map script
+
+#### Scenario: ArcGIS settings are seeded
+
+- **WHEN** the plugin is activated
+- **THEN** the ArcGIS portal URL, API key, basemap, web map, web scene and feature layer settings are seeded with their defaults
 
 ### Requirement: A default marker ships with the plugin
 

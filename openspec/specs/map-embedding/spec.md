@@ -31,6 +31,35 @@ Legacy `INSERT_MAP` tags in post content MUST continue to expand, so content aut
 - **WHEN** post content contains `INSERT_GEOPRESS_MAP`, with or without dimensions
 - **THEN** it is replaced by a map showing every geotagged post
 
+### Requirement: ArcGIS items embed by ID
+
+`INSERT_ARCGIS_MAP` tags MUST embed an ArcGIS web map or 3D web scene by its portal item ID. The item's type MUST be looked up from the configured portal, so authors use one tag for both kinds. The lookup MUST be cached per item, so a page view does not query the portal each time. An item whose type cannot be resolved MUST still render, as a web map.
+
+#### Scenario: Item is a web map
+
+- **WHEN** post content contains `INSERT_ARCGIS_MAP(<item id>)` and the portal reports the item as a Web Map
+- **THEN** it is replaced by a 2D map of that item
+
+#### Scenario: Item is a web scene
+
+- **WHEN** the portal reports the item as a Web Scene
+- **THEN** it is replaced by a 3D scene of that item
+
+#### Scenario: Item type was looked up recently
+
+- **WHEN** the same item is rendered again within a day
+- **THEN** the cached type is used and the portal is not queried
+
+#### Scenario: Item type cannot be resolved
+
+- **WHEN** the portal lookup fails or reports another item type
+- **THEN** the item is rendered as a web map
+
+#### Scenario: Map tag with dimensions
+
+- **WHEN** post content contains `INSERT_ARCGIS_MAP(<item id>,<height>,<width>)`
+- **THEN** the map is rendered at those dimensions
+
 ### Requirement: Shortcodes provide a Block editor path
 
 Because typing bare text tags is awkward in the Block editor, equivalent shortcodes MUST be registered so authors can insert maps through the Shortcode block.
@@ -73,6 +102,12 @@ Map provider scripts MUST be enqueued only for the configured provider, so a sit
 - **WHEN** the configured provider is `google`
 - **THEN** the Google Maps v3 API is enqueued with the configured key applied as a query argument
 - **AND** the key is not pre-encoded before being added to the URL
+
+#### Scenario: ArcGIS is configured
+
+- **WHEN** the configured provider is `arcgis`
+- **THEN** only the ArcGIS Maps SDK and GeoPress's ArcGIS map script are enqueued on the front end
+- **AND** Mapstraction and the other providers' APIs are not enqueued
 
 ### Requirement: Each map on a page is independent
 

@@ -246,7 +246,7 @@ footer a { color: var(--ink-2); }
 <header class="hero">
   <div class="wrap">
     <div>
-      <div class="eyebrow">WordPress plugin · v3.0.1</div>
+      <div class="eyebrow">WordPress plugin · v3.1</div>
       <h1>Put your posts <em>on the map.</em></h1>
       <p class="lede">GeoPress geotags WordPress posts and pages, embeds interactive maps, and publishes your writing as GeoRSS, KML, and GPX so it shows up in map viewers, Google Earth, and GPS tools.</p>
       <div class="cta">
@@ -293,7 +293,7 @@ footer a { color: var(--ink-2); }
       <div class="card">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg></div>
         <h3>Interactive maps</h3>
-        <p>Embed a map of one post, a page and its children, or the whole blog. Providers include OpenLayers, OpenStreetMap, and Google Maps through Mapstraction.</p>
+        <p>Embed a map of one post, a page and its children, or the whole blog. Providers include OpenLayers, OpenStreetMap, Google Maps, and the ArcGIS Maps SDK, which adds web maps and 3D scenes.</p>
       </div>
       <div class="card">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg></div>
@@ -351,12 +351,13 @@ footer a { color: var(--ink-2); }
       </div>
     </div>
 
-    <h3>…and in your feeds</h3>
-    <p style="color:var(--ink-2)">The same location is published automatically. Pick the format your readers' tools expect.</p>
+    <h3>…in your feeds, markup and embeds</h3>
+    <p style="color:var(--ink-2)">The same location is published automatically. Pick the format your readers' tools expect, or embed an ArcGIS map.</p>
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="true" aria-controls="tab-georss" id="t-georss">GeoRSS (RSS 2.0)</button>
       <button role="tab" aria-selected="false" aria-controls="tab-kml" id="t-kml">KML</button>
       <button role="tab" aria-selected="false" aria-controls="tab-mf" id="t-mf">Microformats</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-arcgis" id="t-arcgis">ArcGIS</button>
       <button role="tab" aria-selected="false" aria-controls="tab-theme" id="t-theme">Theme code</button>
     </div>
     <div class="tabpanel" id="tab-georss" role="tabpanel" aria-labelledby="t-georss">
@@ -388,6 +389,18 @@ footer a { color: var(--ink-2); }
 <span class="t">&lt;div</span> class=<span class="s">'adr'</span><span class="t">&gt;</span>Suomenlinna, Helsinki<span class="t">&lt;/div&gt;</span>
 <span class="t">&lt;div</span> class=<span class="s">'vcard'</span><span class="t">&gt;&lt;span</span> class=<span class="s">'fn'</span><span class="t">&gt;</span>Fortress trip<span class="t">&lt;/span&gt;&lt;/div&gt;</span></pre>
     </div>
+    <div class="tabpanel" id="tab-arcgis" role="tabpanel" aria-labelledby="t-arcgis" hidden>
+<pre><span class="c">&lt;!-- In the post: embed a web map or 3D scene by its portal item ID --&gt;</span>
+INSERT_ARCGIS_MAP(41281c51f9de45edaf1c8ed44bb10e30,400,600)
+
+<span class="c">&lt;!-- GeoPress looks up the item type once a day and renders --&gt;</span>
+<span class="t">&lt;arcgis-map</span> item-id=<span class="s">"41281c51f9de45edaf1c8ed44bb10e30"</span> zoom=<span class="s">"11"</span>
+            style=<span class="s">"height:400px; width:600px;"</span><span class="t">&gt;</span>
+  <span class="t">&lt;arcgis-zoom</span> position=<span class="s">"top-left"</span><span class="t">&gt;&lt;/arcgis-zoom&gt;</span>
+  <span class="t">&lt;arcgis-basemap-toggle</span> position=<span class="s">"bottom-right"</span><span class="t">&gt;&lt;/arcgis-basemap-toggle&gt;</span>
+<span class="t">&lt;/arcgis-map&gt;</span>
+<span class="c">&lt;!-- a Web Scene item renders as &lt;arcgis-scene&gt; instead --&gt;</span></pre>
+    </div>
     <div class="tabpanel" id="tab-theme" role="tabpanel" aria-labelledby="t-theme" hidden>
 <pre><span class="c">&lt;?php // single.php, inside The Loop ?&gt;</span>
 <span class="k">&lt;?php if</span> ( has_location() ) : <span class="k">?&gt;</span>
@@ -401,7 +414,7 @@ footer a { color: var(--ink-2); }
 <span class="k">&lt;?php</span> geopress_map( 300, 300, -1 ); <span class="k">?&gt;</span>
 <span class="t">&lt;ul&gt;</span><span class="k">&lt;?php</span> geopress_locations_list(); <span class="k">?&gt;</span><span class="t">&lt;/ul&gt;</span></pre>
     </div>
-    <p class="tab-note">GeoRSS encoding is set under <b>GeoPress → Options</b>.</p>
+    <p class="tab-note">GeoRSS encoding is set under <b>GeoPress → Options</b>. The ArcGIS tag works whichever map provider the site uses, and needs no API key for public items.</p>
   </div>
 </section>
 
@@ -444,6 +457,8 @@ wp plugin activate geopress</pre>
           <tr><td><code>INSERT_MAP(h,w)</code></td><td>Map with a custom height and width</td></tr>
           <tr><td><code>INSERT_MAP(h,w,url)</code></td><td>Map with a KML or GeoRSS overlay</td></tr>
           <tr><td><code>INSERT_GEOPRESS_MAP(h,w)</code></td><td>Map of every geotagged post</td></tr>
+          <tr><td><code>INSERT_ARCGIS_MAP(id)</code></td><td>ArcGIS web map or 3D web scene by portal item ID</td></tr>
+          <tr><td><code>INSERT_ARCGIS_MAP(id,h,w)</code></td><td>The same, with a custom height and width</td></tr>
           <tr><td><code>INSERT_COORDS</code></td><td>Coordinates as a geo microformat</td></tr>
           <tr><td><code>INSERT_ADDRESS</code></td><td>Address as an adr microformat</td></tr>
           <tr><td><code>INSERT_LOCATION</code></td><td>Location name as an hCard microformat</td></tr>

@@ -26,18 +26,23 @@ require_once $autoloader;
 if ( ! defined( 'ABSPATH' ) ) {
     define( 'ABSPATH', dirname( __DIR__ ) . '/' );
 }
-define( 'GEOPRESS_VERSION',              '3.0.1' );
+define( 'GEOPRESS_VERSION',              '3.1' );
 define( 'GEOPRESS_DIR',                  dirname( __DIR__ ) . '/' );
 define( 'GEOPRESS_URL',                  'http://example.com/wp-content/plugins/geopress/' );
 define( 'GEOPRESS_BASENAME',             'geopress/geopress.php' );
 define( 'GEOPRESS_FETCH_TIMEOUT',        5 );
-define( 'GEOPRESS_USER_AGENT',           'GeoPress/3.0.1' );
+define( 'GEOPRESS_USER_AGENT',           'GeoPress/3.1' );
 define( 'GEOPRESS_GOOGLE_GEOCODER',      'https://maps.google.com/maps/geo?q=' );
 define( 'GEOPRESS_GOOGLE_REGEXP',        '<coordinates>(.*),(.*),0</coordinates>' );
 define( 'GEOPRESS_YAHOO_REGEXP',         '<Latitude>(.*)<\/Latitude>.*<Longitude>(.*)<\/Longitude>' );
 define( 'GEOPRESS_YAHOO_GEOCODER',       'https://api.local.yahoo.com/MapsService/V1/geocode?appid=geocodewordpress&location=' );
 define( 'GEOPRESS_YAHOO_ANNOTATEDMAPS',  'https://api.maps.yahoo.com/Maps/V1/AnnotatedMaps?appid=geocodewordpress&xmlsrc=' );
 define( 'GEOPRESS_YAHOO_EMBEDPNGMAPURL', 'https://api.local.yahoo.com/MapsService/V1/mapImage?appid=geocodewordpress&' );
+
+// WordPress time constants used by transient caching.
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+    define( 'DAY_IN_SECONDS', 86400 );
+}
 
 // ── Load plugin classes (no WordPress bootstrap needed) ───────────────────────
 

@@ -2,14 +2,14 @@
 
 > Geotag posts and pages, embed interactive maps, output geo microformats, and publish GeoRSS, KML, and GPX feeds.
 
-![Version](https://img.shields.io/badge/version-3.0-blue)
+![Version](https://img.shields.io/badge/version-3.1-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4)
 ![License](https://img.shields.io/badge/license-GPL--2.0%2B-green)
 
 GeoPress is a WordPress plugin that adds geographic tagging to your posts and pages. Give a post a location — by place name, street address, or `[latitude, longitude]` — and GeoPress geocodes it, stores it, and lets you embed maps and publish geodata feeds.
 
-- 🗺️ **Interactive maps** via the [Mapstraction](https://github.com/mapstraction/mxn) library (OpenLayers, OpenStreetMap, Google, Microsoft)
+- 🗺️ **Interactive maps** via the [Mapstraction](https://github.com/mapstraction/mxn) library (OpenLayers, OpenStreetMap, Google, Microsoft) or the [ArcGIS Maps SDK for JavaScript 5.0](https://developers.arcgis.com/javascript/latest/) (web components — `<arcgis-map>`, `<arcgis-scene>`, web maps and 3D scenes by portal item ID, feature-layer overlays)
 - 📡 **GeoRSS** in your Atom / RSS 2.0 / RDF feeds (Simple, W3C, or GML)
 - 🌍 **KML and GPX** feeds for Google Earth and GPS tools
 - 🏷️ **Microformats** (geo, adr, hCard) for the semantic web
@@ -58,6 +58,7 @@ Project home: <https://georss.org/geopress/>
 | `INSERT_LOCATION` | Location name as an hCard microformat |
 | `GEOPRESS_LOCATION(Address)` | Set the post's location inline by address |
 | `GEOPRESS_LOCATION([lat,lon])` | Set the post's location inline by coordinates |
+| `INSERT_ARCGIS_MAP(item_id,h,w)` | Embed an ArcGIS Online/Enterprise web map or 3D web scene by portal item ID — type is resolved automatically against the configured portal (cached 24 h). Works with any map provider setting |
 
 Machine tags in WordPress post tags also work: `geo:lat=60.15`, `geo:lon=24.94`.
 
@@ -165,6 +166,8 @@ conventions that the workflow feeds to AI agents live in `openspec/config.yaml`.
 ## Changelog
 
 See [CHANGES.TXT](CHANGES.TXT) for the full history.
+
+**3.1** adds the [ArcGIS Maps SDK for JavaScript 5.0](https://developers.arcgis.com/javascript/latest/) as a new map provider — web maps, 3D scenes, feature layers, and a unified `INSERT_ARCGIS_MAP(item_id)` content tag that auto-resolves to the right component (web map or web scene) via the portal items API. Uses the single 5.0 CDN module entry with `$arcgis.import()` runtime loading; defaults to OpenStreetMap so no API key is required out of the box.
 
 **3.0.1** repairs the test suite (it could not run at all), adds CI across PHP 8.0–8.4, and declares the plugin's WordPress/PHP requirements in its header so incompatible sites cannot activate it.
 
