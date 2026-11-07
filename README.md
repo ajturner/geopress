@@ -129,6 +129,26 @@ Two things to know when adding tests:
 
 `mapstraction.js` is a vendored third-party library — **do not edit it**.
 
+### Specs
+
+GeoPress's behaviour is specified under [`openspec/specs/`](openspec/specs), one
+directory per capability: `post-geotagging`, `geocoding`, `location-management`,
+`map-embedding`, `geo-feeds`, `theme-template-api` and `map-configuration`.
+Each spec states requirements as observable behaviour with concrete scenarios,
+and the specs — not this README — are the source of truth for what the plugin
+does.
+
+They are managed with [OpenSpec](https://github.com/Fission-AI/OpenSpec):
+
+```bash
+npx @fission-ai/openspec list --specs                    # inventory
+npx @fission-ai/openspec show <capability>               # read one
+npx @fission-ai/openspec validate --specs --all --strict # check structure
+```
+
+Behaviour changes should update the relevant spec in the same change. Project
+conventions that the workflow feeds to AI agents live in `openspec/config.yaml`.
+
 ## Architecture
 
 `geopress.php` is a thin bootstrap (constants, includes, hook registration); all logic lives in `includes/`:

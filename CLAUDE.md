@@ -4,16 +4,41 @@ This file provides context for AI assistants working in this repository.
 
 ## Project Overview
 
-**GeoPress** is a WordPress plugin (v2.5-beta) that adds geographic tagging capabilities to blog posts and pages. It enables:
+**GeoPress** is a WordPress plugin (v3.0.1) that adds geographic tagging capabilities to blog posts and pages. It enables:
 
 - Tagging posts/pages with geographic coordinates or addresses
-- Embedding interactive maps using multiple providers (Google, Yahoo, Microsoft, OpenStreetMap, OpenLayers)
+- Embedding interactive maps using multiple providers (Google, Microsoft, OpenStreetMap, OpenLayers)
 - Exporting location data as GeoRSS, KML, and GPX feeds
 - Outputting geo microformats (geo, adr, hCard) for semantic web compatibility
 
 **Author:** Andrew Turner, Mikel Maron  
 **License:** GNU General Public License v2+  
-**Target:** WordPress 2.0–2.8 era plugin
+**Target:** WordPress 6.0+ (tested to 7.0), PHP 8.0+
+
+---
+
+## Specs come first
+
+Behaviour is specified in `openspec/specs/<capability>/spec.md`. **Those specs are
+the source of truth for what GeoPress does** — when this file and a spec disagree,
+the spec wins, and this file should be corrected.
+
+Capabilities: `post-geotagging`, `geocoding`, `location-management`,
+`map-embedding`, `geo-feeds`, `theme-template-api`, `map-configuration`.
+
+Work through the OpenSpec workflow rather than editing specs by hand:
+
+```bash
+npx @fission-ai/openspec list --specs        # inventory
+npx @fission-ai/openspec show <capability>   # read one
+npx @fission-ai/openspec validate --specs --all --strict
+```
+
+Slash commands (`/opsx:propose`, `/opsx:apply`, `/opsx:archive`, …) and their
+backing skills live in `.claude/`. Project conventions the workflow feeds to
+agents are in `openspec/config.yaml`; keep that file and this one consistent.
+
+When you change behaviour, update the relevant spec in the same change.
 
 ---
 
@@ -21,31 +46,42 @@ This file provides context for AI assistants working in this repository.
 
 ```
 geopress/
-├── geopress.php        # Main plugin file — all core PHP logic (~1,600 lines)
-├── geopress.js         # Frontend JavaScript for map interaction (~163 lines)
-├── mapstraction.js     # Third-party multi-provider mapping abstraction library (~4,500 lines, do not edit)
+├── geopress.php        # Thin bootstrap: constants, includes, hook registration
+├── includes/           # All PHP logic (see Architecture below)
+├── geopress.js         # Frontend + editor JavaScript for map interaction
+├── mapstraction.js     # Third-party multi-provider mapping library (do not edit)
+├── images/marker.svg   # Default map marker
 ├── wp-kml.php          # KML 2.2 feed output
 ├── wp-gpx.php          # GPX 1.0 feed output
 ├── wp-kml-link.php     # KML NetworkLink wrapper (for Google Earth auto-refresh)
-├── README.TXT          # User-facing documentation
+├── openspec/           # Capability specs + change proposals (source of truth)
+├── tests/              # PHPUnit unit suite (Brain Monkey + Mockery)
+├── .github/workflows/  # CI: lint + unit tests on PHP 8.0–8.4
+├── README.md           # User and developer documentation
 └── CHANGES.TXT         # Version history
 ```
 
-There is no build system, no package.json, no composer.json, no test suite, and no CI configuration. This is a single-file PHP plugin with minimal tooling.
+There is no production build step. Dev tooling is Composer + PHPUnit; CI runs on
+GitHub Actions. `composer.lock` is deliberately not committed — see `.gitignore`.
 
 ---
 
 ## Architecture
 
-### PHP — `geopress.php`
+### PHP — `includes/`
 
-All PHP logic lives in one file. The code is organized into:
+`geopress.php` is a thin bootstrap. The logic is split by concern:
 
-1. **`GeoPress` class** — static methods for all plugin functionality
-2. **Standalone geocoding functions** — `geocode()`, `yahoo_geocode()`, `yahoo_mapurl()`, `yahoo_zoom()`
-3. **Template API functions** — global functions intended for use in WordPress theme templates
+| File | Responsibility |
+|------|----------------|
+| `includes/class-geopress.php` | Core: DB, query hooks, `save_post`, content filters, enqueue |
+| `includes/class-geopress-admin.php` | Admin pages (`GeoPress_Admin`) and the editor Location metabox |
+| `includes/class-geopress-maps.php` | Map rendering (`GeoPress_Maps`) + theme-facing map functions |
+| `includes/class-geopress-feeds.php` | GeoRSS namespaces + Atom/RSS entries (`GeoPress_Feeds`) |
+| `includes/geocoding.php` | Nominatim geocoder + deprecated `yahoo_*` shims |
+| `includes/template-functions.php` | Theme globals |
 
-#### GeoPress Class (key static methods)
+#### GeoPress class (key static methods)
 
 | Method | Purpose |
 |--------|---------|
@@ -54,20 +90,20 @@ All PHP logic lives in one file. The code is organized into:
 | `get_geo($post_id)` | Gets location data for a specific post |
 | `get_location($loc_id)` | Retrieves a location by ID |
 | `get_locations($number)` | Lists all stored locations |
-| `location_edit_form()` | Renders location metabox in post editor |
+| `delete_location($loc_id)` | Deletes a location and clears post references |
 | `update_post($post_id)` | Saves location when a post is saved |
 | `embed_map_inpost($content)` | Processes `INSERT_MAP` and `GEOPRESS_LOCATION` tags in post content |
-| `geopress_options_page()` | Admin settings page |
-| `geopress_locations_page()` | Admin location management page |
-| `geopress_maps_page()` | Admin map configuration page |
 | `mapstraction_map_format()` | Returns configured map provider |
 | `mapstraction_map_type()` | Returns map view type (road/satellite/hybrid) |
 | `mapstraction_map_controls()` | Builds map control object |
 | `join_clause($join)` | Modifies SQL JOIN for location-filtered queries |
 | `where_clause($where)` | Modifies SQL WHERE for location filtering |
-| `geopress_namespace()` | Outputs XML namespace declarations in feeds |
-| `atom_entry($post_id)` | Outputs GeoRSS in Atom feeds |
-| `rss2_item($post_id)` | Outputs GeoRSS in RSS 2.0 feeds |
+
+
+Admin screens are on `GeoPress_Admin` (`geopress_options_page()`,
+`geopress_locations_page()`, `geopress_maps_page()`, `register_meta_boxes()`);
+feed output is on `GeoPress_Feeds` (`geopress_namespace()`, `atom_entry()`,
+`rss2_item()`).
 
 #### Template API Functions (for theme use in the_loop)
 
@@ -106,7 +142,7 @@ GeoPress creates one custom table: `{prefix}_geopress`
 | `floor` | float | Floor level |
 | `radius` | float | Accuracy radius |
 | `visible` | tinyint | Visibility flag |
-| `map_format` | tinytext | Provider: google, yahoo, microsoft, openstreetmap, openlayers |
+| `map_format` | tinytext | Provider: google, microsoft, openstreetmap, openlayers |
 | `map_zoom` | tinyint | Default zoom level |
 | `map_type` | tinytext | View: road, satellite, hybrid |
 
@@ -118,14 +154,13 @@ Post-to-location relationships are stored in the standard WordPress `postmeta` t
 |-----|---------|---------|
 | `_geopress_mapwidth` | 400 | Default map width (px) |
 | `_geopress_mapheight` | 200 | Default map height (px) |
-| `_geopress_marker` | flag.png | Custom marker icon URL |
+| `_geopress_marker` | `images/marker.svg` | Marker icon URL |
 | `_geopress_rss_enable` | true | Enable GeoRSS in feeds |
 | `_geopress_rss_format` | simple | GeoRSS format: simple, w3c, gml |
 | `_geopress_map_format` | openlayers | Map provider |
 | `_geopress_map_type` | hybrid | Map type |
 | `_geopress_default_zoom_level` | 11 | Zoom level (1–18) |
-| `_geopress_google_apikey` | "" | Google Maps v2 API key |
-| `_geopress_yahoo_appid` | "" | Yahoo Maps App ID |
+| `_geopress_google_apikey` | "" | Google Maps v3 API key |
 | `_geopress_controls_*` | varies | UI controls: pan, zoom, overview, scale, map_type |
 
 ### JavaScript — `geopress.js`
@@ -171,30 +206,38 @@ Machine tags in WordPress post tags are also supported: `geo:lat=60.15`, `geo:lo
 
 ## WordPress Hooks Used
 
+All registration lives in `geopress.php`.
+
 **Actions:**
-- `activate_geopress/geopress.php` → `GeoPress::install()`
-- `save_post`, `edit_post`, `publish_post` → `GeoPress::update_post()`
-- `the_content` → `GeoPress::embed_map_inpost()`
-- `edit_form_advanced`, `simple_edit_form`, `edit_page_form` → `GeoPress::location_edit_form()`
+- activation (via `register_activation_hook()`) → `GeoPress::install()`
+- `save_post` → `GeoPress::update_post()`
+- `add_meta_boxes` → `GeoPress_Admin::register_meta_boxes()`
 - `template_redirect` → `GeoPress::location_redirect()`
-- `admin_menu` → registers admin pages
-- `wp_head`, `admin_head` → outputs scripts/styles
-- `atom_ns`, `rss2_ns`, `rdf_ns`, `rss_ns` → `GeoPress::geopress_namespace()`
-- `atom_entry`, `rss2_item`, `rdf_item` → outputs feed location data
+- `admin_menu` → `GeoPress_Admin::admin_menu()`
+- `wp_enqueue_scripts` → `GeoPress::enqueue_scripts()`
+- `admin_enqueue_scripts` → `GeoPress::enqueue_admin_scripts()`
+- `atom_ns`, `rss2_ns`, `rdf_ns`, `rss_ns` → `GeoPress_Feeds::geopress_namespace()`
+- `atom_entry` → `GeoPress_Feeds::atom_entry()`
+- `rss2_item`, `rdf_item`, `rss_item` → `GeoPress_Feeds::rss2_item()`
 
 **Filters:**
+- `the_content` → `GeoPress::embed_map_inpost()`, then `GeoPress::embed_data_inpost()`
 - `posts_join` → `GeoPress::join_clause()`
 - `posts_where` → `GeoPress::where_clause()`
+
+**Shortcodes:** `[geopress_map]`, `[geopress_post_map]`, `[geopress_page_map]` —
+these are the Block editor path to the `INSERT_MAP` tags above.
 
 ---
 
 ## Development Conventions
 
 ### PHP
-- All plugin logic is static methods on the `GeoPress` class — maintain this pattern for core functionality.
-- Template/theme-facing functions are global PHP functions defined after the class.
-- WordPress coding style: snake_case for functions and variables, no strict typing.
-- SQL is built with string concatenation and `$wpdb->prefix`. The codebase uses deprecated `mysql_real_escape_string()` — when modifying SQL, prefer `$wpdb->prepare()` and `$wpdb->get_results()` instead.
+- Core logic is static methods on the `GeoPress` class; admin, map and feed code lives on `GeoPress_Admin`, `GeoPress_Maps` and `GeoPress_Feeds`. Keep new code on the class that owns the concern.
+- Theme-facing functions are global PHP functions in `includes/template-functions.php`. Their names are a public contract — themes call them directly, so a rename is a silent breakage at render time.
+- WordPress coding style: snake_case for functions and variables, tabs in PHP files, no strict typing.
+- Never pre-encode a value passed to `add_query_arg()` — it does its own encoding, and pre-encoding corrupts the result.
+- All SQL goes through `$wpdb->prepare()`, `$wpdb->insert()` or `$wpdb->update()`. Never build a query by concatenating request data.
 - Settings are read/written with `get_option()` / `update_option()`.
 
 ### JavaScript
@@ -203,38 +246,56 @@ Machine tags in WordPress post tags are also supported: `geo:lat=60.15`, `geo:lo
 - jQuery is not used — vanilla JS only.
 
 ### Security Considerations
-- The codebase predates WordPress's `$wpdb->prepare()` adoption. When adding or modifying any SQL, **always use `$wpdb->prepare()`** to prevent SQL injection.
-- Sanitize all user input with `sanitize_text_field()`, `intval()`, `floatval()` etc. before saving.
-- Escape all output with `esc_html()`, `esc_attr()`, `esc_url()` as appropriate.
-- Nonces should be used for any form submissions (some existing forms lack them — add when modifying).
+- Every query goes through `$wpdb->prepare()`, `$wpdb->insert()` or `$wpdb->update()`. Never concatenate request data into SQL.
+- Unslash and sanitize all request input (`wp_unslash()` then `sanitize_text_field()`, `absint()`, `floatval()`) before use or storage.
+- Escape all output for its context: `esc_html()`, `esc_attr()`, `esc_url()`, `esc_js()`.
+- Every state-changing form is nonce-protected, including the post metabox. Keep it that way when adding forms.
+- Verify a nonce with `wp_unslash()` only — never pass it through `sanitize_key()` or similar, which can alter the value and make verification fail.
 
 ---
 
 ## Development Workflow
 
-There is no build step. To develop:
+There is no production build step. To develop:
 
 1. Place the `geopress/` directory in a WordPress installation's `wp-content/plugins/` folder.
 2. Activate the plugin via the WordPress admin.
 3. Edit PHP and JavaScript files directly.
-4. Test via the WordPress admin and front-end.
+4. Run the unit suite, then verify in the WordPress admin and front-end.
 
-There is no test suite. Manual testing is required.
+```bash
+composer install   # dev dependencies (PHPUnit + Brain Monkey)
+composer test      # unit suite
+```
 
-### Git Branch
+The suite stubs WordPress, so no live install is needed. It does **not** cover the
+editor UI, map rendering or feed output — verify those manually against a real
+WordPress install.
 
-Development for AI-assisted changes happens on: `claude/add-claude-documentation-aKOQj`
+Two constraints when adding tests:
+
+- Declare the WordPress functions a test needs with Brain Monkey, in the test.
+  Never add stubs to `tests/bootstrap.php`: Patchwork cannot redefine a function
+  declared in a file that was already executing when it loaded, so a stub there
+  becomes permanently unmockable and every test that mocks it fails.
+- Plugin functions (`geocode()`, the `yahoo_*` shims) cannot be mocked for the
+  same reason. Stub the WordPress calls they make instead, e.g. `wp_remote_get()`.
 
 ---
 
 ## Known Issues & Limitations
 
-- Uses deprecated `mysql_*` PHP functions (pre-MySQLi). Any new DB code must use `$wpdb`.
 - Single coordinate support only — no polylines, polygons, or multiple points per post.
-- Yahoo Maps and Microsoft Maps APIs referenced are legacy/discontinued.
-- Google Maps API v2 key required (v2 is long deprecated).
-- A potential SQL injection point is noted in the original code with a `// SQL INJECTION POSSIBLE?` comment near line 377 — treat any nearby query code with caution.
-- Some URL rewrite rules are commented out (lines 1092–1103 in `geopress.php`).
+- Yahoo Maps is removed. The `yahoo_geocode()`, `yahoo_zoom()` and `yahoo_mapurl()`
+  functions survive only as deprecated shims for themes written against 2.x;
+  GeoPress itself must not call them.
+- Microsoft Maps is still offered as a provider but its API is legacy.
+- Google Maps requires a v3 API key; the provider is opt-in and OpenLayers /
+  OpenStreetMap is the keyless default.
+- Geocoding depends on the public Nominatim service, which rate-limits and
+  requires an identifying `User-Agent`.
+- The functional paths (Block editor metabox, per-provider map rendering,
+  GeoRSS/KML/GPX output) have no automated coverage.
 
 ---
 
