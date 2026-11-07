@@ -161,6 +161,7 @@ function geopress_arcgis_webmap_embed( $item_id, $height = 0, $width = 0 ) {
 		$height = (int) get_option( '_geopress_mapheight', 200 );
 		$width  = (int) get_option( '_geopress_mapwidth', 400 );
 	}
+	GeoPress::enqueue_arcgis_assets();
 	$arcgis  = geopress_arcgis_options();
 	$api_key = '' !== $arcgis['api_key'] ? ' api-key="' . esc_attr( $arcgis['api_key'] ) . '"' : '';
 	$zoom    = GeoPress::mapstraction_map_zoom();
@@ -194,6 +195,7 @@ function geopress_arcgis_webscene_embed( $item_id, $height = 0, $width = 0 ) {
 		$height = (int) get_option( '_geopress_mapheight', 200 );
 		$width  = (int) get_option( '_geopress_mapwidth', 400 );
 	}
+	GeoPress::enqueue_arcgis_assets();
 	$arcgis  = geopress_arcgis_options();
 	$api_key = '' !== $arcgis['api_key'] ? ' api-key="' . esc_attr( $arcgis['api_key'] ) . '"' : '';
 

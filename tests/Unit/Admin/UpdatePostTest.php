@@ -16,6 +16,8 @@ class UpdatePostTest extends TestCase {
 
         $this->wpdb         = \Mockery::mock( 'wpdb' );
         $this->wpdb->prefix = 'wp_';
+        $this->wpdb->posts     = 'wp_posts';
+        $this->wpdb->postmeta  = 'wp_postmeta';
         $GLOBALS['wpdb']    = $this->wpdb;
     }
 
@@ -55,6 +57,8 @@ class UpdatePostTest extends TestCase {
 
         Functions\when( 'wp_verify_nonce' )->justReturn( 1 );
         Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'wp_unslash' )->returnArg();
+        Functions\when( 'sanitize_text_field' )->returnArg();
 
         $post                = new stdClass();
         $post->post_content  = '';
@@ -77,13 +81,12 @@ class UpdatePostTest extends TestCase {
         Functions\when( 'current_user_can' )->justReturn( true );
         Functions\when( 'sanitize_text_field' )->returnArg();
         Functions\when( 'wp_unslash' )->returnArg();
+        Functions\when( 'esc_url_raw' )->returnArg();
+        Functions\when( 'sanitize_key' )->returnArg();
 
         $post               = new stdClass();
         $post->post_content = '';
         Functions\when( 'get_post' )->justReturn( $post );
-
-        // Stub yahoo_mapurl to avoid HTTP.
-        Functions\when( 'yahoo_mapurl' )->justReturn( array( '', '' ) );
 
         // Expect save_geo is effectively called: mock the DB chain.
         $this->wpdb
@@ -141,9 +144,15 @@ class UpdatePostTest extends TestCase {
         $post->post_content = '';
         Functions\when( 'get_post' )->justReturn( $post );
 
-        // No HTTP calls, no DB calls — we only care that sanitization ran.
-        Functions\when( 'yahoo_mapurl' )->justReturn( array( '', '' ) );
-        Functions\when( 'geocode' )->justReturn( array( '', '' ) );
+        // geocode() is a plugin function, so it cannot be replaced by Brain Monkey
+        // (Patchwork only instruments files loaded after it). Stub its HTTP layer
+        // instead: the real geocode() then runs and resolves to no coordinates.
+        Functions\when( 'esc_url_raw' )->returnArg();
+        Functions\when( 'sanitize_key' )->returnArg();
+        Functions\when( 'add_query_arg' )->justReturn( 'https://nominatim.test/search' );
+        Functions\when( 'wp_remote_get' )->justReturn( array( 'body' => '' ) );
+        Functions\when( 'is_wp_error' )->justReturn( false );
+        Functions\when( 'wp_remote_retrieve_body' )->justReturn( '' );
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( '' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturnNull();

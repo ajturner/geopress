@@ -1,6 +1,12 @@
 # Dependencies (installed via `composer install`)
 /vendor/
 
+# Not committed on purpose: GeoPress is distributed as source and supports a
+# PHP range (8.0–8.4), so each environment must resolve dev dependencies for
+# its own PHP version. A lock resolved on the newest PHP pins packages that
+# cannot install on the oldest (e.g. doctrine/instantiator requires PHP ^8.4).
+/composer.lock
+
 # PHPUnit
 /.phpunit.result.cache
 /coverage/

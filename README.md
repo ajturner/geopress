@@ -58,7 +58,7 @@ Project home: <https://georss.org/geopress/>
 | `INSERT_LOCATION` | Location name as an hCard microformat |
 | `GEOPRESS_LOCATION(Address)` | Set the post's location inline by address |
 | `GEOPRESS_LOCATION([lat,lon])` | Set the post's location inline by coordinates |
-| `INSERT_ARCGIS_MAP(item_id,h,w)` | Embed an ArcGIS Online/Enterprise web map or 3D web scene by portal item ID — type is resolved automatically against the configured portal (cached 24 h) |
+| `INSERT_ARCGIS_MAP(item_id,h,w)` | Embed an ArcGIS Online/Enterprise web map or 3D web scene by portal item ID — type is resolved automatically against the configured portal (cached 24 h). Works with any map provider setting |
 
 Machine tags in WordPress post tags also work: `geo:lat=60.15`, `geo:lon=24.94`.
 
@@ -119,7 +119,36 @@ composer test:coverage  # generate a coverage report in coverage/
 
 The test suite uses [Brain Monkey](https://github.com/Brain-WP/BrainMonkey) to stub WordPress functions and Mockery to mock `$wpdb`, so no live WordPress install is required. Manual UI testing (the editor metabox, map rendering, feed output) is still needed for any UI/JS change.
 
+CI runs the lint and unit suite against PHP 8.0–8.4 on every push and pull request.
+
+Two things to know when adding tests:
+
+- **Declare every WordPress function a test needs**, with `Functions\when()` / `expect()`. Do not add stubs to `tests/bootstrap.php` — Patchwork can only redefine functions in files it instruments, and the bootstrap is already running by the time it loads, so a stub declared there becomes permanently unmockable.
+- **Plugin functions cannot be mocked** for the same reason (`geocode()`, `yahoo_*`). Stub the WordPress calls they make instead — e.g. `wp_remote_get()` — to keep a test hermetic.
+
+`composer.lock` is intentionally not committed: the supported PHP range is wide enough that a lock resolved on one version pins packages that cannot install on another.
+
 `mapstraction.js` is a vendored third-party library — **do not edit it**.
+
+### Specs
+
+GeoPress's behaviour is specified under [`openspec/specs/`](openspec/specs), one
+directory per capability: `post-geotagging`, `geocoding`, `location-management`,
+`map-embedding`, `geo-feeds`, `theme-template-api` and `map-configuration`.
+Each spec states requirements as observable behaviour with concrete scenarios,
+and the specs — not this README — are the source of truth for what the plugin
+does.
+
+They are managed with [OpenSpec](https://github.com/Fission-AI/OpenSpec):
+
+```bash
+npx @fission-ai/openspec list --specs                    # inventory
+npx @fission-ai/openspec show <capability>               # read one
+npx @fission-ai/openspec validate --specs --all --strict # check structure
+```
+
+Behaviour changes should update the relevant spec in the same change. Project
+conventions that the workflow feeds to AI agents live in `openspec/config.yaml`.
 
 ## Architecture
 
@@ -138,7 +167,9 @@ The test suite uses [Brain Monkey](https://github.com/Brain-WP/BrainMonkey) to s
 
 See [CHANGES.TXT](CHANGES.TXT) for the full history.
 
-**3.1** adds the [ArcGIS Maps SDK for JavaScript 5.0](https://developers.arcgis.com/javascript/latest/) as a new map provider — web maps, 3D scenes, feature layers, and a unified `INSERT_ARCGIS_MAP(item_id)` content tag that auto-resolves to the right component (web map or web scene) via the portal items API. Uses the single 5.0 CDN module entry with `$arcgis.import()` runtime loading; defaults to OpenStreetMap so no API key is required out of the box. Also unbreaks the PHPUnit suite (Patchwork bootstrap order) and fixes a latent `get_location()` negative-ID bug.
+**3.1** adds the [ArcGIS Maps SDK for JavaScript 5.0](https://developers.arcgis.com/javascript/latest/) as a new map provider — web maps, 3D scenes, feature layers, and a unified `INSERT_ARCGIS_MAP(item_id)` content tag that auto-resolves to the right component (web map or web scene) via the portal items API. Uses the single 5.0 CDN module entry with `$arcgis.import()` runtime loading; defaults to OpenStreetMap so no API key is required out of the box.
+
+**3.0.1** repairs the test suite (it could not run at all), adds CI across PHP 8.0–8.4, and declares the plugin's WordPress/PHP requirements in its header so incompatible sites cannot activate it.
 
 **3.0** modernized the plugin for WordPress 6.x / PHP 8.0+, refactored the single-file plugin into modular classes, added Block editor support and a test suite, switched geocoding to Nominatim, and removed the discontinued Yahoo Maps provider.
 

@@ -13,6 +13,34 @@ use Brain\Monkey\Functions;
 class ArcGISTest extends TestCase {
 
     /**
+     * Declares the WordPress helpers the ArcGIS code calls. Per the suite's
+     * convention these live in each test rather than tests/bootstrap.php,
+     * where Patchwork could not redefine them.
+     */
+    protected function setUp(): void {
+        parent::setUp();
+
+        $escape = static function ( $text ) {
+            return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+        };
+        Functions\when( 'esc_attr' )->alias( $escape );
+        Functions\when( 'esc_html' )->alias( $escape );
+        Functions\when( 'esc_url' )->alias( $escape );
+        Functions\when( 'esc_url_raw' )->returnArg();
+        Functions\when( 'sanitize_text_field' )->alias(
+            static function ( $str ) {
+                return trim( strip_tags( (string) $str ) );
+            }
+        );
+        Functions\when( 'is_wp_error' )->justReturn( false );
+        Functions\when( 'wp_remote_retrieve_body' )->alias(
+            static function ( $response ) {
+                return is_array( $response ) && isset( $response['body'] ) ? $response['body'] : '';
+            }
+        );
+    }
+
+    /**
      * Returns a callable to drive Functions\when('get_option')->alias() that
      * resolves $key from the supplied map, falling back to the test's $default.
      *
@@ -22,6 +50,19 @@ class ArcGISTest extends TestCase {
         return function ( $key, $default = false ) use ( $values ) {
             return array_key_exists( $key, $values ) ? $values[ $key ] : $default;
         };
+    }
+
+    /**
+     * Stubs the asset calls the standalone embeds make. Kept out of setUp()
+     * because the enqueue test sets its own expectation on
+     * wp_add_inline_script().
+     */
+    private function stubArcGISAssets( bool $already_enqueued = false ): void {
+        Functions\when( 'wp_script_is' )->justReturn( $already_enqueued );
+        Functions\when( 'wp_enqueue_style' )->justReturn( null );
+        Functions\when( 'wp_enqueue_script' )->justReturn( null );
+        Functions\when( 'wp_add_inline_script' )->justReturn( true );
+        Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
     }
 
     public function test_arcgis_options_returns_osm_default_basemap(): void {
@@ -75,6 +116,7 @@ class ArcGISTest extends TestCase {
     }
 
     public function test_webmap_embed_uses_item_id_and_basemap_toggle(): void {
+        $this->stubArcGISAssets();
         Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
 
         $html = geopress_arcgis_webmap_embed( 'webmap-xyz', 300, 500 );
@@ -132,6 +174,7 @@ class ArcGISTest extends TestCase {
     }
 
     public function test_map_embed_renders_webscene_when_item_is_webscene(): void {
+        $this->stubArcGISAssets();
         Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
         Functions\when( 'get_transient' )->justReturn( 'webscene' );
 
@@ -143,6 +186,7 @@ class ArcGISTest extends TestCase {
     }
 
     public function test_map_embed_defaults_to_webmap_for_unknown_items(): void {
+        $this->stubArcGISAssets();
         Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
         Functions\when( 'get_transient' )->justReturn( 'unknown' );
 
@@ -151,6 +195,42 @@ class ArcGISTest extends TestCase {
         $this->assertStringContainsString( '<arcgis-map ',     $html );
         $this->assertStringContainsString( 'item-id="mystery"', $html );
         $this->assertStringNotContainsString( '<arcgis-scene ', $html );
+    }
+
+    public function test_embed_loads_arcgis_sdk_when_another_provider_is_active(): void {
+        // A site on the default OpenLayers provider never enqueues the SDK at
+        // enqueue time, so an INSERT_ARCGIS_MAP embed must load it itself or it
+        // renders as an empty element.
+        Functions\when( 'get_option' )->alias( $this->optionResolver( array(
+            '_geopress_map_format' => 'openlayers',
+        ) ) );
+        Functions\when( 'wp_script_is' )->justReturn( false );
+        Functions\when( 'wp_enqueue_style' )->justReturn( null );
+        Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+        Functions\when( 'wp_add_inline_script' )->justReturn( true );
+
+        $enqueued = array();
+        Functions\when( 'wp_enqueue_script' )->alias(
+            static function ( $handle ) use ( &$enqueued ) {
+                $enqueued[] = $handle;
+            }
+        );
+
+        geopress_arcgis_webmap_embed( 'webmap-xyz', 300, 500 );
+
+        $this->assertContains( 'geopress-arcgis-components', $enqueued );
+        $this->assertContains( 'geopress-arcgis-js', $enqueued );
+    }
+
+    public function test_embed_does_not_add_config_twice_when_assets_already_enqueued(): void {
+        Functions\when( 'get_option' )->alias( $this->optionResolver( array() ) );
+        Functions\when( 'wp_script_is' )->justReturn( true );
+        Functions\expect( 'wp_enqueue_script' )->never();
+        Functions\expect( 'wp_add_inline_script' )->never();
+
+        $html = geopress_arcgis_webmap_embed( 'webmap-xyz', 300, 500 );
+
+        $this->assertStringContainsString( 'item-id="webmap-xyz"', $html );
     }
 
     public function test_enqueue_scripts_injects_arcgis_config_when_provider_is_arcgis(): void {
@@ -167,6 +247,7 @@ class ArcGISTest extends TestCase {
         Functions\when( 'wp_enqueue_style' )->justReturn( null );
         Functions\when( 'add_filter' )->justReturn( true );
         Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+        Functions\when( 'wp_script_is' )->justReturn( false );
 
         $captured = array();
         Functions\expect( 'wp_add_inline_script' )

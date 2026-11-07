@@ -175,7 +175,6 @@ class GeoPress_Admin {
 					$notices[] = array( 'error', __( 'Address is required to add a location.', 'geopress' ) );
 				} else {
 					list( $lat, $lon ) = geocode( $addr );
-					list( $warn, $mapurl ) = yahoo_mapurl( $addr );
 
 					if ( '' === $lat || '' === $lon ) {
 						$notices[] = array( 'error', sprintf(
@@ -184,7 +183,7 @@ class GeoPress_Admin {
 							esc_html( $addr )
 						) );
 					} else {
-						GeoPress::save_geo( -1, $name, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, 1 );
+						GeoPress::save_geo( -1, $name, $addr, "{$lat} {$lon}", 'point', '', '', 1 );
 						$notices[] = array( 'updated', sprintf(
 							/* translators: 1: location name, 2: coordinates */
 							__( 'Location &#8220;%1$s&#8221; added at %2$s.', 'geopress' ),
@@ -227,8 +226,7 @@ class GeoPress_Admin {
 						list( $lat, $lon ) = geocode( $addr );
 					}
 
-					list( $warn, $mapurl ) = yahoo_mapurl( $addr );
-					GeoPress::save_geo( $lid, $name, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, $vis );
+					GeoPress::save_geo( $lid, $name, $addr, "{$lat} {$lon}", 'point', '', '', $vis );
 				}
 
 				$notices[] = array( 'updated', __( 'Locations saved.', 'geopress' ) );

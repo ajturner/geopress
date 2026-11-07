@@ -2,27 +2,25 @@
 /**
  * GeoPress test bootstrap.
  *
- * Loads Composer autoloader (which brings in Brain Monkey / Mockery via
- * yoast/wp-test-utils), then defines the WordPress stub functions that
- * GeoPress calls so unit tests can run without a real WordPress installation.
+ * Loads the Composer autoloader (which brings in Brain Monkey / Mockery via
+ * yoast/wp-test-utils) and the plugin's include files, so unit tests can run
+ * without a real WordPress installation.
+ *
+ * WordPress functions are deliberately NOT stubbed here. Brain Monkey defines
+ * them on demand via Patchwork when a test calls Functions\when()/stubs()/
+ * expect(). Declaring them in this file would make them undefinable: Patchwork
+ * can only redefine functions in files it instruments, and this bootstrap is
+ * already executing by the time Patchwork initialises — which yields
+ * "DefinedTooEarly" errors for every test that stubs them.
  */
 
-// Patchwork MUST load before anything else: it registers a stream wrapper that
-// instruments every subsequent require/include so Brain Monkey can later
-// redefine functions in those files. If we let Composer's autoloader pull
-// Patchwork in via its `files` section, the autoloader itself runs un-
-// instrumented and any WP-function stubs declared during bootstrap throw
-// "DefinedTooEarly". Patchwork.php is idempotent: composer's later autoload
-// will see it as already loaded and skip it.
-$patchwork = dirname( __DIR__ ) . '/vendor/antecedent/patchwork/Patchwork.php';
-if ( ! file_exists( $patchwork ) ) {
+// Composer autoloader — required before anything else.
+$autoloader = dirname( __DIR__ ) . '/vendor/autoload.php';
+if ( ! file_exists( $autoloader ) ) {
     echo "Run `composer install` before running the tests.\n";
     exit( 1 );
 }
-require_once $patchwork;
-
-// Composer autoloader — Brain Monkey, Mockery, etc.
-require_once dirname( __DIR__ ) . '/vendor/autoload.php';
+require_once $autoloader;
 
 // Plugin constants needed by the includes files.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -41,13 +39,10 @@ define( 'GEOPRESS_YAHOO_GEOCODER',       'https://api.local.yahoo.com/MapsServic
 define( 'GEOPRESS_YAHOO_ANNOTATEDMAPS',  'https://api.maps.yahoo.com/Maps/V1/AnnotatedMaps?appid=geocodewordpress&xmlsrc=' );
 define( 'GEOPRESS_YAHOO_EMBEDPNGMAPURL', 'https://api.local.yahoo.com/MapsService/V1/mapImage?appid=geocodewordpress&' );
 
-// ── WordPress function stubs ───────────────────────────────────────────────────
-// Stubs live in a separate file required AFTER the Composer autoloader so that
-// Patchwork (loaded transitively via Brain Monkey) can instrument the
-// definitions. Defining them inline here triggers Patchwork's "DefinedTooEarly"
-// error: Patchwork only instruments files required after it has been loaded.
-
-require_once __DIR__ . '/wp-stubs.php';
+// WordPress time constants used by transient caching.
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+    define( 'DAY_IN_SECONDS', 86400 );
+}
 
 // ── Load plugin classes (no WordPress bootstrap needed) ───────────────────────
 

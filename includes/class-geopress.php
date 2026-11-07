@@ -438,9 +438,7 @@ class GeoPress {
 			list( $lat, $lon ) = geocode( $addr );
 		}
 
-		list( $warn, $mapurl ) = yahoo_mapurl( $addr );
-
-		$geo_id = self::save_geo( -1, $locname, $addr, "{$lat} {$lon}", 'point', $warn, $mapurl, 1 );
+		$geo_id = self::save_geo( -1, $locname, $addr, "{$lat} {$lon}", 'point', '', '', 1 );
 
 		if ( $geo_id ) {
 			if ( ! update_post_meta( $post_id, '_geopress_id', $geo_id ) ) {
@@ -756,6 +754,34 @@ class GeoPress {
 	}
 
 	/**
+	 * Enqueues the ArcGIS Maps SDK, GeoPress's ArcGIS script and its config.
+	 *
+	 * Called at enqueue time when ArcGIS is the site-wide provider, and again
+	 * by the standalone ArcGIS embeds so an INSERT_ARCGIS_MAP tag still renders
+	 * on a site whose provider is something else. Scripts enqueued while the
+	 * content is rendering are printed in the footer. The enqueued check keeps
+	 * the inline config from being added twice.
+	 */
+	public static function enqueue_arcgis_assets() {
+		if ( wp_script_is( 'geopress-arcgis-js', 'enqueued' ) ) {
+			return;
+		}
+		wp_enqueue_style( 'geopress-arcgis-css' );
+		wp_enqueue_script( 'geopress-arcgis-components' );
+		wp_enqueue_script( 'geopress-arcgis-js' );
+		wp_add_inline_script(
+			'geopress-arcgis-js',
+			'window.geopressArcGISConfig = ' . wp_json_encode(
+				array(
+					'apiKey'    => get_option( '_geopress_arcgis_api_key', '' ),
+					'portalUrl' => get_option( '_geopress_arcgis_portal_url', 'https://www.arcgis.com' ),
+				)
+			) . ';',
+			'before'
+		);
+	}
+
+	/**
 	 * Enqueues the map API library scripts based on the configured map provider.
 	 */
 	private static function enqueue_map_api_scripts() {
@@ -763,19 +789,7 @@ class GeoPress {
 
 		// ArcGIS Maps SDK v5 — web components path (bypasses Mapstraction entirely).
 		if ( 'arcgis' === $map_format ) {
-			wp_enqueue_style( 'geopress-arcgis-css' );
-			wp_enqueue_script( 'geopress-arcgis-components' );
-			wp_enqueue_script( 'geopress-arcgis-js' );
-			wp_add_inline_script(
-				'geopress-arcgis-js',
-				'window.geopressArcGISConfig = ' . wp_json_encode(
-					array(
-						'apiKey'    => get_option( '_geopress_arcgis_api_key', '' ),
-						'portalUrl' => get_option( '_geopress_arcgis_portal_url', 'https://www.arcgis.com' ),
-					)
-				) . ';',
-				'before'
-			);
+			self::enqueue_arcgis_assets();
 			return;
 		}
 

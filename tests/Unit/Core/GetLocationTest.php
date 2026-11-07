@@ -15,6 +15,8 @@ class GetLocationTest extends TestCase {
 
         $this->wpdb         = \Mockery::mock( 'wpdb' );
         $this->wpdb->prefix = 'wp_';
+        $this->wpdb->posts     = 'wp_posts';
+        $this->wpdb->postmeta  = 'wp_postmeta';
         $GLOBALS['wpdb']    = $this->wpdb;
     }
 

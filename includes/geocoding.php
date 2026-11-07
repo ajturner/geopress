@@ -60,6 +60,9 @@ function geocode( $location, $geocoder = 'nominatim' ) {
 /**
  * Backward-compatible wrapper — delegates to geocode().
  *
+ * @deprecated 3.0 Use geocode() instead. Retained so themes that called the
+ *                 old Yahoo helpers keep working; not used by GeoPress itself.
+ *
  * @param string $location
  * @return array [ $lat, $lon ]
  */
@@ -69,7 +72,9 @@ function yahoo_geocode( $location ) {
 
 /**
  * Convert GeoPress zoom (1=world, 18=closest) to a legacy Yahoo zoom value.
- * Kept for backward compatibility; callers can treat the return as a generic zoom.
+ *
+ * @deprecated 3.0 Yahoo Maps is discontinued. Retained for theme compatibility;
+ *                 not used by GeoPress itself.
  *
  * @param int $zoom
  * @return int
@@ -80,6 +85,9 @@ function yahoo_zoom( $zoom ) {
 
 /**
  * Yahoo static-map API is defunct. Returns empty strings.
+ *
+ * @deprecated 3.0 Always returned empty strings after Yahoo Maps was removed.
+ *                 Retained for theme compatibility; no longer called by GeoPress.
  *
  * @param string $location  Unused.
  * @return array            [ '', '' ]
