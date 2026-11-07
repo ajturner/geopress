@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoPress for WordPress</title>
+<meta name="description" content="GeoPress is a WordPress plugin that geotags posts and pages, embeds interactive maps, and publishes GeoRSS, KML, and GPX feeds. No API key required.">
+<link rel="icon" href="marker.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root {
+  --bg: #f7f4ee;
+  --surface: #ffffff;
+  --surface-2: #efeae0;
+  --ink: #1f2a2e;
+  --ink-2: #4b5a5f;
+  --line: #ddd5c6;
+  --accent: #c0392b;
+  --accent-ink: #ffffff;
+  --sea: #2c6e7f;
+  --code-bg: #1f2a2e;
+  --code-ink: #e8e3d8;
+  --code-dim: #8fa3a8;
+  --code-tag: #f0a07a;
+  --code-str: #a8d5a2;
+  --grid: rgba(44, 110, 127, 0.08);
+  --shadow: 0 1px 2px rgba(31,42,46,.06), 0 8px 24px rgba(31,42,46,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141b1e;
+    --surface: #1c2529;
+    --surface-2: #232e33;
+    --ink: #ece7dd;
+    --ink-2: #a9b6ba;
+    --line: #33424a;
+    --accent: #e8604f;
+    --accent-ink: #141b1e;
+    --sea: #6fb3c4;
+    --code-bg: #0e1416;
+    --grid: rgba(111, 179, 196, 0.07);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141b1e;
+  --surface: #1c2529;
+  --surface-2: #232e33;
+  --ink: #ece7dd;
+  --ink-2: #a9b6ba;
+  --line: #33424a;
+  --accent: #e8604f;
+  --accent-ink: #141b1e;
+  --sea: #6fb3c4;
+  --code-bg: #0e1416;
+  --grid: rgba(111, 179, 196, 0.07);
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.3);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.6 Inter, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--sea); }
+a:hover { color: var(--accent); }
+h1, h2, h3 { font-family: Fraunces, Georgia, serif; line-height: 1.15; margin: 0 0 .5em; font-weight: 700; }
+h2 { font-size: clamp(1.7rem, 3.5vw, 2.3rem); }
+h3 { font-size: 1.2rem; font-weight: 500; }
+p { margin: 0 0 1em; }
+code, pre { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .88em; }
+:not(pre) > code { background: var(--surface-2); padding: .1em .35em; border-radius: 4px; }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+@media (min-width: 720px) { .wrap { padding: 0 32px; } }
+
+/* Nav */
+nav.top {
+  position: sticky; top: 0; z-index: 1000;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+nav.top .wrap { display: flex; align-items: center; gap: 20px; height: 56px; }
+.brand { display: flex; align-items: center; gap: 8px; font-family: Fraunces, serif; font-weight: 700; font-size: 1.15rem; color: var(--ink); text-decoration: none; }
+.brand img { width: 16px; height: 24px; }
+nav.top ul { display: flex; gap: 18px; list-style: none; margin: 0 0 0 auto; padding: 0; }
+nav.top ul a { color: var(--ink-2); text-decoration: none; font-size: .92rem; font-weight: 500; }
+nav.top ul a:hover { color: var(--ink); }
+@media (max-width: 640px) { nav.top ul li.opt { display: none; } }
+
+/* Hero */
+.hero {
+  padding: 56px 0 64px;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+  border-bottom: 1px solid var(--line);
+}
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; align-items: center; }
+.hero .wrap > *, .grid > *, .example > *, .why > *, .usage > * { min-width: 0; }
+@media (min-width: 900px) { .hero .wrap { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); } }
+.eyebrow { font: 500 .78rem/1 "JetBrains Mono", monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--sea); margin-bottom: 16px; }
+.hero h1 { font-size: clamp(2.1rem, 6vw, 3.6rem); overflow-wrap: break-word; letter-spacing: -.01em; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.lede { font-size: 1.15rem; color: var(--ink-2); max-width: 34em; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 20px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: .95rem;
+  border: 1px solid var(--line); color: var(--ink); background: var(--surface);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { color: var(--accent-ink); filter: brightness(1.08); }
+.btn:hover { color: var(--ink); border-color: var(--ink-2); }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; font: .8rem "JetBrains Mono", monospace; color: var(--ink-2); }
+.badges span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: var(--surface); }
+
+.map-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.map-card .bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: .82rem; color: var(--ink-2); }
+.map-card .bar b { color: var(--ink); font-weight: 600; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+#demo-map { height: 360px; background: var(--surface-2); }
+.map-card .caption { padding: 10px 14px; font-size: .82rem; color: var(--ink-2); border-top: 1px solid var(--line); }
+.leaflet-popup-content { font: 14px/1.45 Inter, sans-serif; }
+.leaflet-popup-content strong { font-family: Fraunces, serif; font-size: 1.05em; }
+
+/* Sections */
+section { padding: 72px 0; }
+section.alt { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.section-intro { max-width: 640px; color: var(--ink-2); font-size: 1.05rem; margin-bottom: 36px; }
+
+.grid { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 640px) { .grid.c2 { grid-template-columns: repeat(2, 1fr); } .grid.c3 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 960px) { .grid.c3 { grid-template-columns: repeat(3, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+section.alt .card { background: var(--bg); }
+.card .icon { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--sea) 14%, transparent); color: var(--sea); margin-bottom: 14px; }
+.card .icon svg { width: 20px; height: 20px; }
+.card p { color: var(--ink-2); margin: 0; font-size: .95rem; }
+
+.why { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+@media (min-width: 860px) { .why { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; } }
+.why ul { margin: 0; padding: 0; list-style: none; }
+.why li { padding: 14px 0 14px 30px; border-bottom: 1px solid var(--line); position: relative; color: var(--ink-2); }
+.why li:last-child { border-bottom: 0; }
+.why li::before { content: ""; position: absolute; left: 4px; top: 21px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--accent); }
+.why li b { color: var(--ink); font-weight: 600; }
+
+/* Code */
+pre {
+  margin: 0; background: var(--code-bg); color: var(--code-ink);
+  padding: 18px 20px; border-radius: 10px; overflow-x: auto; line-height: 1.55;
+}
+pre .c { color: var(--code-dim); }
+pre .t { color: var(--code-tag); }
+pre .s { color: var(--code-str); }
+pre .k { color: var(--code-tag); font-weight: 500; }
+
+/* Example: editor -> output */
+.example { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: stretch; margin-bottom: 40px; }
+@media (min-width: 860px) { .example { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); } }
+.arrow { display: none; align-self: center; color: var(--ink-2); }
+@media (min-width: 860px) { .arrow { display: block; } }
+.pane { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.pane .label { font: 500 .74rem/1 "JetBrains Mono", monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.pane .body { padding: 18px; flex: 1; }
+.editor-field { font-size: .8rem; color: var(--ink-2); margin-bottom: 4px; }
+.editor-input { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--bg); font-size: .92rem; margin-bottom: 14px; }
+.editor-text { font-family: Georgia, serif; font-size: 1rem; line-height: 1.6; }
+.editor-text code { color: var(--accent); font-weight: 500; }
+.post h4 { font-family: Fraunces, serif; font-size: 1.25rem; margin: 0 0 4px; }
+.post .meta { font-size: .8rem; color: var(--ink-2); margin-bottom: 12px; }
+.post p { font-family: Georgia, serif; font-size: 1rem; }
+#post-map { height: 180px; border-radius: 6px; border: 1px solid var(--line); margin: 6px 0 12px; }
+.post .geo { font: .82rem "JetBrains Mono", monospace; color: var(--ink-2); }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: -1px; position: relative; }
+.tabs button {
+  font: 500 .85rem Inter, sans-serif; color: var(--ink-2); background: transparent;
+  border: 1px solid transparent; border-bottom: 0; padding: 9px 16px; border-radius: 8px 8px 0 0; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--code-bg); color: var(--code-ink); }
+.tabs button:hover:not([aria-selected="true"]) { color: var(--ink); }
+.tabpanel pre { border-top-left-radius: 0; }
+.tabpanel[hidden] { display: none; }
+.tab-note { font-size: .9rem; color: var(--ink-2); margin-top: 12px; }
+
+/* Install steps */
+ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; gap: 16px; }
+ol.steps li { counter-increment: s; position: relative; padding: 18px 20px 18px 64px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+section.alt ol.steps li { background: var(--bg); }
+ol.steps li::before {
+  content: counter(s); position: absolute; left: 18px; top: 16px;
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink); font: 700 .9rem Fraunces, serif;
+}
+ol.steps li > b { display: block; margin-bottom: 2px; }
+ol.steps li span { color: var(--ink-2); font-size: .95rem; }
+.req { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); margin-bottom: 28px; }
+.req div { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--bg); }
+.req small { display: block; color: var(--ink-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+.req strong { font-family: Fraunces, serif; font-size: 1.3rem; }
+@media (max-width: 480px) { .req { grid-template-columns: 1fr; } }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); background: var(--surface-2); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+
+.usage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+.usage h3 { margin-top: 0; }
+
+footer { padding: 40px 0; border-top: 1px solid var(--line); color: var(--ink-2); font-size: .9rem; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
+footer a { color: var(--ink-2); }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="marker.svg" alt="">GeoPress</a>
+    <ul>
+      <li class="opt"><a href="#why">Why</a></li>
+      <li class="opt"><a href="#examples">Examples</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#usage">Usage</a></li>
+      <li><a href="https://github.com/ajturner/geopress">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">WordPress plugin · v3.0.1</div>
+      <h1>Put your posts <em>on the map.</em></h1>
+      <p class="lede">GeoPress geotags WordPress posts and pages, embeds interactive maps, and publishes your writing as GeoRSS, KML, and GPX so it shows up in map viewers, Google Earth, and GPS tools.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/ajturner/geopress/archive/refs/heads/master.zip">Download plugin</a>
+        <a class="btn" href="#install">Installation guide</a>
+      </div>
+      <div class="badges">
+        <span>WordPress 6.0+</span><span>PHP 8.0+</span><span>No API key</span><span>GPL-2.0+</span>
+      </div>
+    </div>
+    <div class="map-card">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>&nbsp; <b>INSERT_GEOPRESS_MAP</b> on an example travel blog</div>
+      <div id="demo-map" role="img" aria-label="Map of five example geotagged blog posts across northern Europe"></div>
+      <div class="caption">Every geotagged post becomes a marker. Click one to see its post.</div>
+    </div>
+  </div>
+</header>
+
+<section id="why">
+  <div class="wrap why">
+    <div>
+      <h2>Why geotag a blog?</h2>
+      <p class="section-intro" style="margin-bottom:0">Many posts are about a place: a trip, a neighborhood meeting, a field site, a restaurant review. GeoPress records that place once and reuses it everywhere. Readers get a map in the post. Machines get a standard feed they can plot.</p>
+    </div>
+    <ul>
+      <li><b>Your archive becomes a map.</b> One tag shows every located post, so readers can browse by place as well as by date.</li>
+      <li><b>Open standards, not lock-in.</b> GeoRSS, KML, GPX, and microformats are read by feed readers, Google Earth, QGIS, and GPS devices.</li>
+      <li><b>Nothing to sign up for.</b> Geocoding uses OpenStreetMap Nominatim and maps default to OpenLayers with OpenStreetMap tiles.</li>
+      <li><b>Fits how you write.</b> Use the Location box, a shortcode block, an inline tag, or theme template functions.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="section-intro">One location per post, saved in its own table and reused across maps, feeds, and markup.</p>
+    <div class="grid c3">
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></div>
+        <h3>Geotag anything</h3>
+        <p>Type a place name, a street address, or <code>[lat, lon]</code>, or click the map. Saved locations like “Home” can be reused on later posts.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg></div>
+        <h3>Interactive maps</h3>
+        <p>Embed a map of one post, a page and its children, or the whole blog. Providers include OpenLayers, OpenStreetMap, and Google Maps through Mapstraction.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg></div>
+        <h3>GeoRSS feeds</h3>
+        <p>Your Atom, RSS 2.0, and RDF feeds carry each post’s location in Simple, W3C Geo, or GML encoding.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
+        <h3>KML and GPX</h3>
+        <p>Open the blog in Google Earth with a self-refreshing NetworkLink, or load posts onto a GPS device as waypoints.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg></div>
+        <h3>Microformats</h3>
+        <p>Output coordinates, addresses, and place names as geo, adr, and hCard markup that search engines and parsers understand.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></div>
+        <h3>Block and Classic editor</h3>
+        <p>The Location box sits in the Gutenberg document sidebar or below the Classic editor. Shortcodes work in any Shortcode block.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="examples">
+  <div class="wrap">
+    <h2>Examples</h2>
+    <p class="section-intro">Write a post with a location and a tag. GeoPress handles the rest.</p>
+
+    <div class="example">
+      <div class="pane">
+        <div class="label">In the editor</div>
+        <div class="body">
+          <div class="editor-field">Location</div>
+          <div class="editor-input">Suomenlinna, Helsinki</div>
+          <div class="editor-field">Post content</div>
+          <div class="editor-text">
+            <p>We took the ferry out to the sea fortress this morning. The wind off the Baltic was fierce, but the views back to the city made up for it.</p>
+            <p><code>INSERT_MAP(180,400)</code></p>
+            <p>Coordinates: <code>INSERT_COORDS</code></p>
+          </div>
+        </div>
+      </div>
+      <svg class="arrow" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      <div class="pane">
+        <div class="label">On your site</div>
+        <div class="body post">
+          <h4>A windy day at the fortress</h4>
+          <div class="meta">Posted in Travel · Suomenlinna, Helsinki</div>
+          <p>We took the ferry out to the sea fortress this morning. The wind off the Baltic was fierce, but the views back to the city made up for it.</p>
+          <div id="post-map" role="img" aria-label="Map centered on Suomenlinna, Helsinki"></div>
+          <p class="geo">Coordinates: 60.1454, 24.9881</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>…and in your feeds</h3>
+    <p style="color:var(--ink-2)">The same location is published automatically. Pick the format your readers' tools expect.</p>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" aria-controls="tab-georss" id="t-georss">GeoRSS (RSS 2.0)</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-kml" id="t-kml">KML</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-mf" id="t-mf">Microformats</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-theme" id="t-theme">Theme code</button>
+    </div>
+    <div class="tabpanel" id="tab-georss" role="tabpanel" aria-labelledby="t-georss">
+<pre><span class="t">&lt;item&gt;</span>
+  <span class="t">&lt;title&gt;</span>A windy day at the fortress<span class="t">&lt;/title&gt;</span>
+  <span class="t">&lt;link&gt;</span>https://example.blog/2026/11/fortress/<span class="t">&lt;/link&gt;</span>
+  <span class="c">&lt;!-- added by GeoPress --&gt;</span>
+  <span class="t">&lt;georss:point&gt;</span>60.1454 24.9881<span class="t">&lt;/georss:point&gt;</span>
+  <span class="t">&lt;georss:featurename&gt;</span>Suomenlinna, Helsinki<span class="t">&lt;/georss:featurename&gt;</span>
+<span class="t">&lt;/item&gt;</span></pre>
+    </div>
+    <div class="tabpanel" id="tab-kml" role="tabpanel" aria-labelledby="t-kml" hidden>
+<pre><span class="c">&lt;!-- /wp-content/plugins/geopress/wp-kml.php --&gt;</span>
+<span class="t">&lt;Placemark</span> id=<span class="s">"42"</span><span class="t">&gt;</span>
+  <span class="t">&lt;name&gt;</span>A windy day at the fortress<span class="t">&lt;/name&gt;</span>
+  <span class="t">&lt;styleUrl&gt;</span>#defaultStyle<span class="t">&lt;/styleUrl&gt;</span>
+  <span class="t">&lt;Point&gt;</span>
+    <span class="t">&lt;altitudeMode&gt;</span>relativeToGround<span class="t">&lt;/altitudeMode&gt;</span>
+    <span class="t">&lt;coordinates&gt;</span>24.9881,60.1454,25<span class="t">&lt;/coordinates&gt;</span>
+  <span class="t">&lt;/Point&gt;</span>
+<span class="t">&lt;/Placemark&gt;</span></pre>
+    </div>
+    <div class="tabpanel" id="tab-mf" role="tabpanel" aria-labelledby="t-mf" hidden>
+<pre><span class="c">&lt;!-- INSERT_COORDS, INSERT_ADDRESS, INSERT_LOCATION --&gt;</span>
+<span class="t">&lt;div</span> class=<span class="s">'geo'</span><span class="t">&gt;</span>
+  <span class="t">&lt;span</span> class=<span class="s">'latitude'</span><span class="t">&gt;</span>60.1454<span class="t">&lt;/span&gt;</span>,
+  <span class="t">&lt;span</span> class=<span class="s">'longitude'</span><span class="t">&gt;</span>24.9881<span class="t">&lt;/span&gt;</span>
+<span class="t">&lt;/div&gt;</span>
+<span class="t">&lt;div</span> class=<span class="s">'adr'</span><span class="t">&gt;</span>Suomenlinna, Helsinki<span class="t">&lt;/div&gt;</span>
+<span class="t">&lt;div</span> class=<span class="s">'vcard'</span><span class="t">&gt;&lt;span</span> class=<span class="s">'fn'</span><span class="t">&gt;</span>Fortress trip<span class="t">&lt;/span&gt;&lt;/div&gt;</span></pre>
+    </div>
+    <div class="tabpanel" id="tab-theme" role="tabpanel" aria-labelledby="t-theme" hidden>
+<pre><span class="c">&lt;?php // single.php, inside The Loop ?&gt;</span>
+<span class="k">&lt;?php if</span> ( has_location() ) : <span class="k">?&gt;</span>
+  <span class="t">&lt;p</span> class=<span class="s">"post-place"</span><span class="t">&gt;</span>
+    Written at <span class="k">&lt;?php</span> echo esc_html( the_location_name() ); <span class="k">?&gt;</span>
+  <span class="t">&lt;/p&gt;</span>
+  <span class="k">&lt;?php</span> geopress_post_map( 240, 600 ); <span class="k">?&gt;</span>
+<span class="k">&lt;?php endif; ?&gt;</span>
+
+<span class="c">&lt;?php // sidebar.php: every located post, with a list of places ?&gt;</span>
+<span class="k">&lt;?php</span> geopress_map( 300, 300, -1 ); <span class="k">?&gt;</span>
+<span class="t">&lt;ul&gt;</span><span class="k">&lt;?php</span> geopress_locations_list(); <span class="k">?&gt;</span><span class="t">&lt;/ul&gt;</span></pre>
+    </div>
+    <p class="tab-note">GeoRSS encoding is set under <b>GeoPress → Options</b>.</p>
+  </div>
+</section>
+
+<section id="install" class="alt">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="section-intro">The defaults work out of the box. There are no accounts to create and no keys to paste.</p>
+    <div class="req">
+      <div><small>WordPress</small><strong>6.0+</strong></div>
+      <div><small>PHP</small><strong>8.0+</strong></div>
+      <div><small>API keys</small><strong>None</strong></div>
+    </div>
+    <ol class="steps">
+      <li><b>Get the plugin.</b><span><a href="https://github.com/ajturner/geopress/archive/refs/heads/master.zip">Download the ZIP</a> and upload it under <b>Plugins → Add New → Upload Plugin</b>, or copy the <code>geopress</code> folder into <code>wp-content/plugins/</code>.</span></li>
+      <li><b>Activate GeoPress.</b><span>Activation creates the <code>{prefix}_geopress</code> table that stores locations.</span></li>
+      <li><b>Review the options.</b><span>Optional. Under <b>GeoPress → Options</b> set the map provider, size, zoom, GeoRSS format, and controls. Add a Google Maps key only if you choose Google as the provider.</span></li>
+      <li><b>Geotag a post.</b><span>In the <b>Location</b> box, type a place, an address, or <code>[lat, lon]</code>, or click the map. The location is geocoded when you save.</span></li>
+      <li><b>Show a map.</b><span>Add <code>INSERT_MAP</code> or a <code>[geopress_post_map]</code> shortcode, or turn on <b>Add Maps</b> to append one to every located post.</span></li>
+    </ol>
+    <p style="margin-top:20px;color:var(--ink-2)">Prefer the command line?</p>
+<pre><span class="c"># from your WordPress root</span>
+git clone https://github.com/ajturner/geopress.git wp-content/plugins/geopress
+wp plugin activate geopress</pre>
+  </div>
+</section>
+
+<section id="usage">
+  <div class="wrap usage">
+    <div>
+      <h2>Usage reference</h2>
+      <p class="section-intro" style="margin-bottom:0">Four ways to place a map, from no code at all to full theme control.</p>
+    </div>
+
+    <div>
+      <h3>Post content tags</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Tag</th><th>Output</th></tr></thead>
+        <tbody>
+          <tr><td><code>INSERT_MAP</code></td><td>Interactive map at the post’s location</td></tr>
+          <tr><td><code>INSERT_MAP(h,w)</code></td><td>Map with a custom height and width</td></tr>
+          <tr><td><code>INSERT_MAP(h,w,url)</code></td><td>Map with a KML or GeoRSS overlay</td></tr>
+          <tr><td><code>INSERT_GEOPRESS_MAP(h,w)</code></td><td>Map of every geotagged post</td></tr>
+          <tr><td><code>INSERT_COORDS</code></td><td>Coordinates as a geo microformat</td></tr>
+          <tr><td><code>INSERT_ADDRESS</code></td><td>Address as an adr microformat</td></tr>
+          <tr><td><code>INSERT_LOCATION</code></td><td>Location name as an hCard microformat</td></tr>
+          <tr><td><code>GEOPRESS_LOCATION(Address)</code></td><td>Set the post’s location inline by address</td></tr>
+          <tr><td><code>GEOPRESS_LOCATION([lat,lon])</code></td><td>Set the post’s location inline by coordinates</td></tr>
+        </tbody>
+      </table></div>
+      <p class="tab-note">Machine tags also work as post tags, for example <code>geo:lat=60.15</code> and <code>geo:lon=24.94</code>.</p>
+    </div>
+
+    <div class="grid c2">
+      <div>
+        <h3>Shortcodes</h3>
+<pre>[geopress_map height="" width=""
+  locations="-1" zoom_level="-1" url=""]
+
+[geopress_post_map height="" width=""
+  overlay=""]
+
+[geopress_page_map height="" width=""]</pre>
+      </div>
+      <div>
+        <h3>Template functions</h3>
+<pre>has_location();       <span class="c">// bool</span>
+the_coord();          <span class="c">// "lat lon"</span>
+the_address();
+the_location_name();
+the_geo_mf();  the_adr_mf();  the_loc_mf();
+geopress_post_map( $h, $w );
+geopress_page_map( $h, $w );
+geopress_map( $h, $w, $locations );
+geopress_kml_link();</pre>
+      </div>
+    </div>
+
+    <div>
+      <h3>Feed endpoints</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>URL under <code>/wp-content/plugins/geopress/</code></th><th>Format</th><th>Use it for</th></tr></thead>
+        <tbody>
+          <tr><td><code>wp-kml.php</code></td><td>KML 2.2</td><td>Google Earth, QGIS, ArcGIS</td></tr>
+          <tr><td><code>wp-kml-link.php</code></td><td>KML NetworkLink</td><td>A Google Earth layer that refreshes itself</td></tr>
+          <tr><td><code>wp-gpx.php</code></td><td>GPX 1.0</td><td>GPS devices and route planners</td></tr>
+          <tr><td>your normal feed URL</td><td>GeoRSS in Atom, RSS 2.0, or RDF</td><td>Feed readers and map mashups</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>GeoPress by Andrew Turner and Mikel Maron. Released under the GPL-2.0+.</div>
+    <div><a href="https://github.com/ajturner/geopress">Source</a> · <a href="https://github.com/ajturner/geopress/blob/master/CHANGES.TXT">Changelog</a> · <a href="https://github.com/ajturner/geopress/issues">Issues</a> · <a href="https://georss.org/">GeoRSS</a></div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function () {
+  // Tabs
+  var tabs = document.querySelectorAll('.tabs button');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) {
+        t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+        document.getElementById(t.getAttribute('aria-controls')).hidden = t !== tab;
+      });
+    });
+  });
+
+  if (typeof L === 'undefined') return;
+
+  var icon = L.icon({ iconUrl: 'marker.svg', iconSize: [24, 36], iconAnchor: [12, 28], popupAnchor: [0, -26] });
+  var tiles = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  var attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+  var posts = [
+    { t: 'A windy day at the fortress', p: 'Suomenlinna, Helsinki', ll: [60.1454, 24.9881] },
+    { t: 'Old Town by night', p: 'Tallinn, Estonia', ll: [59.4370, 24.7450] },
+    { t: 'Ferry to the archipelago', p: 'Stockholm, Sweden', ll: [59.3293, 18.0686] },
+    { t: 'Bikes everywhere', p: 'Copenhagen, Denmark', ll: [55.6761, 12.5683] },
+    { t: 'Midsummer in the fjords', p: 'Bergen, Norway', ll: [60.3913, 5.3221] }
+  ];
+
+  var demo = L.map('demo-map', { scrollWheelZoom: false });
+  L.tileLayer(tiles, { maxZoom: 18, attribution: attribution }).addTo(demo);
+  var bounds = [];
+  posts.forEach(function (post) {
+    L.marker(post.ll, { icon: icon, title: post.t }).addTo(demo)
+      .bindPopup('<strong>' + post.t + '</strong><br>' + post.p);
+    bounds.push(post.ll);
+  });
+  demo.fitBounds(bounds, { paddingTopLeft: [60, 40], paddingBottomRight: [30, 30] });
+
+  var single = L.map('post-map', { scrollWheelZoom: false, zoomControl: false, attributionControl: true })
+    .setView([60.1454, 24.9881], 13);
+  L.tileLayer(tiles, { maxZoom: 18, attribution: attribution }).addTo(single);
+  L.marker([60.1454, 24.9881], { icon: icon }).addTo(single);
+})();
+</script>
+</body>
+</html>
